@@ -51,3 +51,11 @@ Current blocker: opening the saved draft from the editor fails with HTTP 403. Sc
 Pending diagnostic question: after this fresh sign-in, does direct navigation to the same saved draft API URL still return JSON or now an access-denied page? No answer received yet. Edge automation is unavailable; the agent's in-app browser has a separate session. Do not collect cookies, tokens, raw authentication headers or private story text.
 
 Next: resolve the draft GET 403, then finish and deploy the tested queued-save/message changes and verify upload, insertion, save and reopen in the user's authenticated browser. Add HEIC/HEIF preparation afterward. Publishing remains disabled, with no publishing token configured. Development remains on codex/standalone-studio; this checkpoint does not deploy or merge application changes.
+
+## Authentication diagnosis update — 2026-10-06
+
+After logging out and back in, the user confirms HTTP 403 persists. Direct navigation to the saved draft now also returns the Editor access required page. Azure users list still assigns studio_editor to the approved Clint Microsoft account, but the user's current /.auth/me response contains only anonymous and authenticated roles. The missing session role explains the current access denial; why the session lost the assigned role remains unconfirmed.
+
+Created a fresh seven-day aad invitation for the already-approved Clint account and studio_editor role. Invitation expires 2026-10-13 at 9:32 PM Pacific (2026-10-14 04:32 UTC). Signed invitation is stored only in ignored local/Clint-Studio-Invitation.json and was shared privately in chat; do not commit the URL or signature. No email was sent, no access rules were weakened and no application deployment was triggered.
+
+Next user action: accept the fresh invitation in the same Edge browser with Clint's approved account, then reopen Studio. Verify /.auth/me includes studio_editor, the saved draft opens, and the role persists after a later logout/login. Invitation acceptance and restored access are not yet confirmed. After access is restored, finish the locally tested queued-save/message fix and verify insertion/save/reopen. HEIC/HEIF conversion remains requested and unimplemented; publishing remains disabled.
