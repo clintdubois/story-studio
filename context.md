@@ -17,3 +17,9 @@ User reports selecting six or eight JPGs with no photos or visible error. Confir
 A Node check exercises the actual library handler with eight mock files, a failed third file, incremental rendering, retained errors and failed initial preparation. It passes, along with JS syntax checking. Hosted acceptance is reported by the user; the available in-app tab still shows the earlier access page, so actual authenticated batch success is not confirmed. Fix commit bee399c was deployed by run 37569630243; public source page verifies v0.1.1-preview is served. Workflow completion remains to be recorded. Public source archive is released under v0.1.1-preview.
 
 User then reported the old generic Please sign in again message. This may mean a non-JSON service response rather than authentication failure; cause remains unconfirmed. Azure confirms one assigned studio_editor user. User asked to refresh after preserving unsaved writing and retry one JPG for the new persistent diagnostic message. JPG batch success and save/reopen remain unverified.
+
+## Upload draft readiness guard
+
+User's next single-JPG attempt returned Invalid draft or photo identifier. Read-only storage inspection confirms one draft with a canonical UUID matching its folder and zero photos. This rules out a malformed stored draft but not a missing frontend ID or failed initialization. The current browser automation tab still shows old access denial, so it cannot inspect the working editor session. Asked user for top-of-page status.
+
+Upload input now starts disabled and enables only after the draft and CKEditor are ready. applyDraft rejects missing/malformed IDs, and webPhoto rejects an invalid upload address before any request. Node checks exercise missing/undefined/malformed IDs as well as the existing batch cases. Syntax and checks pass. Underlying hosted initialization failure, if any, remains unconfirmed.

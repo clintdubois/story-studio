@@ -20,4 +20,12 @@ async function scenario(saveFails=false){
   if(saveFails){assert.equal(attempts,0);assert.match(elements['upload-status'].textContent,/Title is required/);}
   else{assert.equal(attempts,8);assert.equal(renders,7);assert.equal(context.photos.length,7);assert.equal(schedules,1);assert.match(elements['upload-status'].textContent,/7 of 8/);assert.equal(elements['upload-errors'].items[0].textContent,'3.jpg: <bad file>');}
 }
-(async()=>{await scenario();await scenario(true);console.log('Batch checks passed: eight files, incremental rendering, one failure continues, errors retained, preparation failure reported.');})().catch(e=>{console.error(e);process.exitCode=1});
+async function readiness(){
+  const uploadFunction=html.slice(html.indexOf('function webPhoto('),start);
+  for(const id of [null,undefined,'','undefined','not-a-uuid']){
+    const context={draftId:id};vm.createContext(context);vm.runInContext(uploadFunction,context);
+    await assert.rejects(context.webPhoto({}),/saved draft must be open/);
+  }
+  assert.match(html,/multiple hidden disabled/);
+}
+(async()=>{await readiness();await scenario();await scenario(true);console.log('Batch checks passed: eight files, incremental rendering, one failure continues, errors retained, preparation failure reported.');})().catch(e=>{console.error(e);process.exitCode=1});
