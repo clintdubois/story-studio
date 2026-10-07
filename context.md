@@ -89,3 +89,7 @@ User requested access to the photo library while editing lower in a long story. 
 ## Selection button visibility fix — 2026-10-07
 
 User screenshot reveals long unbroken photo filenames push the Select/Deselect buttons outside the clipped photo tiles. Filename flex items now shrink with min-width zero and show an ellipsis; selection buttons cannot shrink. Hovering over the filename shows its full value. The viewer still displays the full name. This fixes the visible layout cause rather than changing selection state. Frontend syntax passes. Hosted verification pending user retest.
+
+## Cleaner photo tiles — 2026-10-07
+
+User still could not see Select and requested filenames only on hover. Removed filename text from the tile row entirely. The photo's title attribute shows its filename on hover, and the row contains only a full-width Select/Deselect button. Full filename remains available in the viewer. Actual tile rendering and frontend syntax checks pass. User verification after deployment remains pending.
