@@ -21,7 +21,7 @@ Create a private drafts container and a published container that allows individu
 ## Hosting
 
 1. Run `python tools/build_studio.py` to create site/ and package the validator into api/.
-2. Deploy site/ plus api/ to Azure Static Web Apps with Python 3.11. There is deliberately no active Actions deployment workflow yet.
+2. Deploy site/ plus api/ to Azure Static Web Apps with Python 3.11. The deployment workflow is `.github/workflows/deploy-studio.yml`. Configure its AZURE_STATIC_WEB_APPS_API_TOKEN GitHub secret for your own hosting app. Pushes to main deploy it; manual dispatch can deploy the development branch. Documentation-only main pushes skip deployment.
 3. Use Microsoft's aad provider. Invite only approved authors with studio_editor on this hosting app. Roles from a different app must not be assumed to transfer.
 4. Keep API endpoints behind the SWA authentication gateway. Function authLevel anonymous is intentional only behind that gateway; do not expose a separate Functions host that accepts caller-supplied x-ms-client-principal headers.
 5. Verify sign-in, library/direct upload, duplicate filenames, edited copies, galleries, save/reopen and denied access for ordinary authenticated users.
@@ -37,3 +37,9 @@ Deploying Studio independently keeps editor-only work out of the blog build. Dra
 ## Limitations
 
 No draft deletion/history or existing-post import. JSON backup contains writing and private photo addresses, not image bytes. Crop is centered 4:3. Large-batch synchronous publication timing is unmeasured. Source extraction has local mocked tests; the new hosting application requires its own authenticated end-to-end checks.
+
+## Reusing Studio for another website
+
+Start with local.settings.example.json. Its empty credentials and example destinations are safe to share. Your own local.settings.json is ignored by Git; Azure deployment uses private server app settings instead of shipping this file. Never replace the public example with live credentials. The hosting deployment token belongs in a GitHub Actions secret, not in either public file.
+
+A site using the documented meta.json/body.html blog contract needs configuration changes only. WordPress, Drupal or another publishing format requires replacing the publishing adapter in api/studio_api.py. Configure Microsoft editor invitations separately for your hosting app. This repository does not include a universal destination selector.
