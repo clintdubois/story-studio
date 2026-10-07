@@ -26,6 +26,20 @@ class StudioTests(unittest.TestCase):
         for html in ['<script>alert(1)</script>','<img src="'+URL+'" onerror="alert(1)">','<a href="javascript:alert(1)">x</a>','<span style="color:red;background-image:url(x)">x</span>','<img src="data:image/png;base64,AAAA">','<img src="https://evil.example/photo.jpg">']:
             with self.subTest(html=html),self.assertRaises(ValueError): validate_draft(self.draft(html))
 
+    def test_rejection_names_the_address_without_dumping_it(self):
+        big = 'data:image/png;base64,' + 'A' * 5000
+        cases = [
+            (f'<p><img src="blob:https://studio.example/abc"></p>', 'picture address: blob:https://studio.example/abc'),
+            (f'<p><img src="{big}"></p>', 'picture address: data:image/png;base64,...'),
+            ('<p><a href="www.example.com">x</a></p>', 'link address: www.example.com'),
+            ('<p><img src="/api/story-media/not-a-uuid/also-not"></p>', 'picture address: /api/story-media/not-a-uuid/also-not'),
+        ]
+        for html, expected in cases:
+            with self.assertRaises(ValueError) as caught:
+                validate_draft(self.draft(html))
+            self.assertIn(expected, str(caught.exception))
+            self.assertLess(len(str(caught.exception)), 200)
+
     def test_direct_upload_dimensions_and_list_ids_preserved(self):
         html=f'<figure class="image"><img style="aspect-ratio:1200/800;" src="{URL}" width="1200" height="800" loading="lazy"></figure><ul><li data-list-item-id="a0123456789abcdef0123456789abcdef">A stop</li></ul>'
         saved,images=validate_draft(self.draft(html))

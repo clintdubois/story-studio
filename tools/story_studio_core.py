@@ -35,6 +35,15 @@ def safe_url(value: str, image=False) -> bool:
         value.startswith(('/', '#')) and not value.startswith('//'))
 
 
+def describe_address(value) -> str:
+    """The rejected address for an error message. Addresses are not story text; long ones (a picture still
+    uploading is a huge data: address) are cut short so the message stays readable."""
+    text = str(value if value is not None else '')
+    if text.startswith('data:'):
+        text = text.split(',', 1)[0] + ',...'
+    return text[:90] + ('...' if len(text) > 90 else '') if text else '(empty)'
+
+
 class StoryHTML(HTMLParser):
     tags = set('p h2 h3 h4 strong b em i u s del span a ul ol li blockquote '
                'figure figcaption img table thead tbody tfoot tr td th caption '
@@ -66,7 +75,8 @@ class StoryHTML(HTMLParser):
                 raise ValueError('Unsupported photo or table layout.')
             if name == 'style': self.check_style(value or '')
             if name in {'src', 'href'} and not safe_url(value, image=name == 'src'):
-                raise ValueError('The story contains an unsupported image or link address.')
+                raise ValueError('The story contains an unsupported ' + ('picture' if name == 'src' else 'link')
+                                 + ' address: ' + describe_address(value) + '.')
             if name in {'width', 'height', 'colspan', 'rowspan', 'start', 'value'} and not re.fullmatch(r'\d{1,5}', value or ''):
                 raise ValueError('Invalid image or table size.')
             if name == 'target' and value not in {'_blank', '_self'}:
