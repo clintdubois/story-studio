@@ -43,3 +43,7 @@ No draft deletion/history or existing-post import. JSON backup contains writing 
 Start with local.settings.example.json. Its empty credentials and example destinations are safe to share. Your own local.settings.json is ignored by Git; Azure deployment uses private server app settings instead of shipping this file. Never replace the public example with live credentials. The hosting deployment token belongs in a GitHub Actions secret, not in either public file.
 
 A site using the documented meta.json/body.html blog contract needs configuration changes only. WordPress, Drupal or another publishing format requires replacing the publishing adapter in api/studio_api.py. Configure Microsoft editor invitations separately for your hosting app. This repository does not include a universal destination selector.
+
+## Current hosted preview
+
+The separate Studio application is hosted at https://zealous-ground-065787e1e.3.azurestaticapps.net/admin/story-studio/. It uses the Free plan. Microsoft invitations are specific to this application. Publication is disabled while authenticated workflow verification is pending. Source downloads are available at https://github.com/clintdubois/story-studio/releases/tag/v0.1.0-preview. No custom domain has been configured.
