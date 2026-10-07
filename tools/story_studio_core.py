@@ -35,6 +35,20 @@ def safe_url(value: str, image=False) -> bool:
         value.startswith(('/', '#')) and not value.startswith('//'))
 
 
+STORY_MEDIA_PATH = r'/api/story-media/[0-9a-f-]{36}/[0-9a-f-]{36}(?:/thumbnail)?'
+_ABSOLUTE_IMG_SRC = re.compile(r'(\bsrc=")https?://[^/"\s]+(' + STORY_MEDIA_PATH + r'")')
+_ABSOLUTE_COVER = re.compile(r'https?://[^/\s]+(' + STORY_MEDIA_PATH + r')')
+
+
+def localize_story_media(html: str, cover: str):
+    """The editor (or the browser) can hold a studio photo under the site's full web address instead of the short
+    /api/story-media/... form. Both name the same photo on the same site, so store the short form. Only that exact
+    photo path is rewritten; any other address still has to pass the normal check."""
+    html = _ABSOLUTE_IMG_SRC.sub(r'\1\2', html)
+    m = _ABSOLUTE_COVER.fullmatch(cover or '')
+    return html, (m.group(1) if m else cover)
+
+
 def describe_address(value) -> str:
     """The rejected address for an error message. Addresses are not story text; long ones (a picture still
     uploading is a huge data: address) are cut short so the message stays readable."""
@@ -138,11 +152,12 @@ def validate_draft(data):
     except (ValueError,TypeError): raise ValueError('Choose a valid post date.') from None
     if not isinstance(html,str) or len(html.encode('utf-8')) > MAX_HTML_BYTES:
         raise ValueError('The story is too large. Upload photos through the photo library.')
+    html, cover_in = localize_story_media(html, data.get('cover', ''))
     parser = StoryHTML()
     parser.feed(html)
     parser.close()
     if parser.stack: raise ValueError('The story contains unclosed formatting.')
-    cover = data.get('cover', '')
+    cover = cover_in
     if cover and not safe_url(cover,image=True): raise ValueError('Choose a valid cover photo.')
     return {'title':title.strip(),'date':date,'summary':summary,'html':html,'cover':cover}, parser.images
 

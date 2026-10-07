@@ -26,6 +26,22 @@ class StudioTests(unittest.TestCase):
         for html in ['<script>alert(1)</script>','<img src="'+URL+'" onerror="alert(1)">','<a href="javascript:alert(1)">x</a>','<span style="color:red;background-image:url(x)">x</span>','<img src="data:image/png;base64,AAAA">','<img src="https://evil.example/photo.jpg">']:
             with self.subTest(html=html),self.assertRaises(ValueError): validate_draft(self.draft(html))
 
+    def test_full_web_address_of_a_studio_photo_is_stored_in_short_form(self):
+        d, p = '1bd28ab3-73b0-4d46-8a1f-0123456789ab', '2cd28ab3-73b0-4d46-8a1f-0123456789cd'
+        full = f'https://studio.example.net/api/story-media/{d}/{p}'
+        saved, images = validate_draft({**self.draft(f'<figure class="image"><img src="{full}" alt="x"></figure>'), 'cover': full})
+        short = f'/api/story-media/{d}/{p}'
+        self.assertIn(f'src="{short}"', saved['html'])
+        self.assertNotIn('studio.example.net', saved['html'])
+        self.assertEqual((images, saved['cover']), ([short], short))
+
+    def test_other_full_addresses_are_still_rejected(self):
+        for html in ('<p><img src="https://evil.example/photo.jpg"></p>',
+                     '<p><img src="https://studio.example.net/api/other/1/2"></p>',
+                     '<p><img src="https://studio.example.net/api/story-media/not-a-uuid/nope"></p>'):
+            with self.assertRaises(ValueError):
+                validate_draft(self.draft(html))
+
     def test_rejection_names_the_address_without_dumping_it(self):
         big = 'data:image/png;base64,' + 'A' * 5000
         cases = [
