@@ -81,3 +81,7 @@ Next user action: accept the fresh invitation in the same Edge browser with Clin
 ## Photo selection controls — 2026-10-07
 
 User confirms a six-photo upload worked, but clearing the automatically selected photos was unclear. Selection previously used a small checkmark button; clicking an image opens the viewer. Buttons now explicitly say Deselect for selected photos, and Clear selection clears the batch without deleting photos or changing story content. Delegated clicks use the closest selection/view control. Frontend syntax, individual toggle, clear-selection and existing batch checks pass locally. Hosted verification remains pending deployment and user retest.
+
+## Photo pane follows editing — 2026-10-07
+
+User requested access to the photo library while editing lower in a long story. The desktop photo pane now uses sticky positioning with a 16px top gap, aligns to the top of its grid column and has a viewport-limited height with its own vertical scrolling. At widths of 950px or less, where the page uses a single column, it returns to normal page flow. This avoids covering the story on narrow screens. Standalone build passes; hosted scrolling and insertion require user verification. No save/upload/publish behavior changed.
