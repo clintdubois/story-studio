@@ -111,3 +111,7 @@ Crop geometry/bounds/preset/export-path and frontend syntax checks pass, alongsi
 Move back now returns a photo to Available without requiring deletion from the story or cover. Persisted reuseAvailable state keeps it available through rendering and reopening; a new story occurrence moves it back into Used. Occurrence tracking supports both insertion buttons and dragging. Remove still protects photos referenced by the story or cover. Backend validates and preserves the new boolean alongside used/removed.
 
 Crop border is red and the bottom-right resize handle is a bold red plus; clean exported JPEGs do not include these controls. All 25 Python tests and six frontend checks pass, including moving back while referenced and marking Used after another insertion. Hosted user verification remains pending after deployment.
+
+## Crop control layout — 2026-10-07
+
+Moved Crop shape into a labeled field with its label above a full-width styled dropdown. Crop shape, Rotate and Reset align along their bottom edges, share a 44px control height and wrap on narrow screens. Crop behavior is unchanged. Crop checks and frontend syntax pass; visual acceptance pending user review after deployment.
