@@ -134,6 +134,11 @@ def publish(client,key,req):
         if not isinstance(slug,str) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',slug) or len(slug)>100:
             raise ValueError('Use a short address containing lowercase letters, numbers, and hyphens.')
         if old.get('published') and old['published']['slug']!=slug:raise ValueError('Keep the existing published address.')
+        if (old.get('published') or {}).get('active') is False and options.get('notify'):
+            sitemap=requests.get(WEBSITE+'/sitemap.xml',timeout=30)
+            if not sitemap.ok:raise ValueError('Cannot verify the offline version yet. Try publishing again later.')
+            if re.search(r'<loc>[^<]*/post/'+re.escape(slug)+r'/?</loc>',sitemap.text):
+                raise ValueError('Wait until unpublishing finishes before republishing with subscriber email.')
         clean,images=validate_draft(old)
         # GitHub git-data API creates both files in one commit; updating the
         # branch is fast-forward only, so unrelated changes are never overwritten.
@@ -194,13 +199,51 @@ def publish(client,key,req):
         newcommit=gh('POST','/git/commits',{'message':'Publish reviewed Story Studio post: '+clean['title'],'tree':tree['sha'],'parents':[ref]})
         lease.renew()
         gh('PATCH','/git/refs/heads/main',{'sha':newcommit['sha'],'force':False})
-        old['published']={'slug':slug,'commit':newcommit['sha'],'time':dt.datetime.now(dt.timezone.utc).isoformat()}
+        old['published']={'active':True,'slug':slug,'commit':newcommit['sha'],'time':dt.datetime.now(dt.timezone.utc).isoformat()}
         try:put_draft(client,key,old,etag)
         except ResourceModifiedError:
             # A new draft edit after the snapshot must not be overwritten.
             latest,newetag=read_draft(client,key);latest['published']=old['published'];put_draft(client,key,latest,newetag)
         return response({'success':True,'commit':newcommit['sha'],'url':WEBSITE+'/post/'+slug+'/',
                          'message':'Publishing started. The site build will make this version live.'})
+    finally:lease.release()
+
+def unpublish(client,key,req):
+    profile=json.loads((Path(__file__).parent/'studio_deployment.json').read_text())
+    if profile.get('profile')!='production' or os.environ.get('STUDIO_ALLOW_PUBLISH')!='true':
+        return response({'error':'Publishing is disabled in this environment.'},409)
+    token=os.environ.get('STUDIO_GITHUB_TOKEN')
+    if not token:return response({'error':'Publishing credentials are not configured.'},503)
+    old,etag=read_draft(client,key)
+    if req.headers.get('If-Match')!=etag:return response({'error':'This draft changed. Reload before unpublishing.'},409)
+    published=old.get('published') or {};slug=published.get('slug','')
+    if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',slug):raise ValueError('This draft has not been published.')
+    lock=client.get_blob_client(PRIVATE,key+'/publish.lock')
+    try:lock.upload_blob(b'',overwrite=False)
+    except ResourceExistsError:pass
+    try:lease=lock.acquire_lease(lease_duration=60)
+    except Exception:return response({'error':'This draft is already publishing. Try again later.'},409)
+    try:
+        session=requests.Session();session.headers.update({'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'})
+        api='https://api.github.com/repos/'+REPO
+        def gh(method,path,body=None):
+            r=session.request(method,api+path,json=body,timeout=30)
+            if not r.ok:raise RuntimeError('GitHub could not complete unpublishing. Your draft is safe.')
+            return r.json()
+        ref=gh('GET','/git/ref/heads/main')['object']['sha'];commit=gh('GET','/git/commits/'+ref)
+        prior=gh('GET','/contents/content/posts/'+slug+'/meta.json?ref='+ref)
+        meta=json.loads(base64.b64decode(prior['content']))
+        if meta.get('studio_draft_id')!=key:raise ValueError('This post does not belong to this draft.')
+        # Remove reader-facing files, so legacy draft-preview builds cannot expose the withdrawn story.
+        # The editable source remains in private Studio storage.
+        tree=gh('POST','/git/trees',{'base_tree':commit['tree']['sha'],'tree':[{'path':f'content/posts/{slug}/'+name,'mode':'100644','type':'blob','sha':None} for name in ('meta.json','body.html')]})
+        new=gh('POST','/git/commits',{'message':'Unpublish Story Studio post: '+meta['title'],'tree':tree['sha'],'parents':[ref]})
+        lease.renew();gh('PATCH','/git/refs/heads/main',{'sha':new['sha'],'force':False})
+        old['published']={**published,'active':False,'commit':new['sha'],'unpublished_at':dt.datetime.now(dt.timezone.utc).isoformat()}
+        try:put_draft(client,key,old,etag)
+        except ResourceModifiedError:
+            latest,newetag=read_draft(client,key);latest['published']=old['published'];put_draft(client,key,latest,newetag)
+        return response({'success':True,'message':'Unpublishing started. Wait for the website build to finish. Your editable draft and photos are retained.'})
     finally:lease.release()
 
 def handle_studio(req):
@@ -221,6 +264,7 @@ def handle_studio(req):
         identifier(key)
         if action=='photos' and req.method=='POST':return upload_photo(client,key,req)
         if action=='publish' and req.method=='POST':return publish(client,key,req)
+        if action=='unpublish' and req.method=='POST':return unpublish(client,key,req)
         if not action and req.method=='GET':
             draft,etag=read_draft(client,key);return response(draft,etag=etag)
         if not action and req.method=='PUT':

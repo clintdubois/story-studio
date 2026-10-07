@@ -37,6 +37,33 @@ class APITests(unittest.TestCase):
         payload['html']='<p>Story</p>';payload['photos'][0]['removed']='yes'
         with self.assertRaisesRegex(ValueError,'library state'):api.checked_draft(payload,KEY,{'photos':[asset]})
 
+    def test_unpublish_hides_only_owned_post_and_preserves_draft(self):
+        draft={'title':'Test','html':'<p>Private edits</p>','photos':[{'id':PHOTO}],'published':{'slug':'test-post'}}
+        meta={'title':'Test','studio_draft_id':KEY,'draft':False,'notify':True}
+        for owner_ok in (True,False):
+            stored={**meta,'studio_draft_id':KEY if owner_ok else 'other'}
+            session=MagicMock()
+            answers=[{'object':{'sha':'base'}},{'tree':{'sha':'tree-base'}},{'content':base64.b64encode(json.dumps(stored).encode()).decode()},{'sha':'tree-new'},{'sha':'commit-new'},{}]
+            session.request.side_effect=[MagicMock(ok=True,json=MagicMock(return_value=v)) for v in answers]
+            client=MagicMock()
+            with patch.dict(os.environ,{'STUDIO_ALLOW_PUBLISH':'true','STUDIO_GITHUB_TOKEN':'test-only'}),patch.object(api.Path,'read_text',return_value='{"profile":"production"}'),patch.object(api,'read_draft',return_value=(draft.copy(),'v1')),patch.object(api,'put_draft') as put,patch.object(api.requests,'Session',return_value=session):
+                if not owner_ok:
+                    with self.assertRaisesRegex(ValueError,'belong'):api.unpublish(client,KEY,request('POST'))
+                    put.assert_not_called();self.assertEqual(session.request.call_count,3)
+                    continue
+                self.assertEqual(api.unpublish(client,KEY,request('POST')).status_code,200)
+                tree=session.request.call_args_list[3].kwargs['json']['tree'];self.assertEqual({item['path'].split('/')[-1] for item in tree},{'meta.json','body.html'})
+                self.assertTrue(all(item['sha'] is None for item in tree))
+                self.assertFalse(session.request.call_args_list[-1].kwargs['json']['force'])
+                saved=put.call_args.args[2];self.assertFalse(saved['published']['active']);self.assertEqual(saved['html'],draft['html']);self.assertEqual(saved['photos'],draft['photos'])
+                client.get_blob_client.return_value.acquire_lease.return_value.release.assert_called_once()
+
+    def test_republish_email_waits_for_offline_sitemap(self):
+        draft={'title':'Test','date':'2026-10-07','summary':'','html':'<p>Story</p>','cover':'','photos':[],'published':{'slug':'test-post','active':False}}
+        with patch.dict(os.environ,{'STUDIO_ALLOW_PUBLISH':'true','STUDIO_GITHUB_TOKEN':'test-only'}),patch.object(api.Path,'read_text',return_value='{"profile":"production"}'),patch.object(api,'read_draft',return_value=(draft,'v1')),patch.object(api.requests,'get',return_value=MagicMock(ok=True,text='<loc>https://blog.example/post/test-post</loc>')),patch.object(api.requests,'Session') as session:
+            with self.assertRaisesRegex(ValueError,'Wait until'):api.publish(MagicMock(),KEY,request('POST',body={'slug':'test-post','notify':True}))
+            session.assert_not_called()
+
     def test_missing_account_cannot_open_storage(self):
         with patch.object(api,'ACCOUNT',''),patch.object(api,'BlobServiceClient') as service:
             with self.assertRaises(RuntimeError):api.storage()

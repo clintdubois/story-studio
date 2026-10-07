@@ -46,6 +46,13 @@ A site using the documented meta.json/body.html blog contract needs configuratio
 
 ## Current hosted preview
 
-The separate Studio application is hosted at https://zealous-ground-065787e1e.3.azurestaticapps.net/admin/story-studio/. It uses the Free plan. Microsoft invitations are specific to this application. Manual publication is enabled on this hosted instance after the user verified editing/save/reopen and the blog reader adapter was deployed. Publish remains an explicit reviewed action; the first live post still needs user verification. Source downloads are available at https://github.com/clintdubois/story-studio/releases/tag/v0.1.6. No custom domain has been configured.
+The separate Studio application is hosted at https://zealous-ground-065787e1e.3.azurestaticapps.net/admin/story-studio/. It uses the Free plan. Microsoft invitations are specific to this application. Manual publication is enabled on this hosted instance after the user verified editing/save/reopen and the blog reader adapter was deployed. Publish remains an explicit reviewed action; the first live post still needs user verification. Source downloads are available at https://github.com/clintdubois/story-studio/releases/tag/v0.1.7. No custom domain has been configured.
 
 JPEG-based multi-picture (MPO) files with .jpg names are accepted. Their primary image is prepared as ordinary JPEG; additional image frames stay only in the private original.
+
+
+## Unpublish and republish
+
+Unpublish requires an approved editor, current draft ETag and confirmation. It verifies ownership of the live post, removes only its meta.json/body.html from the blog in one fast-forward commit, and retains its Studio draft and photo assets. After the website rebuilds the post is absent from both production and legacy draft-preview builds. The published slug is retained for reuse. Public photo copies and previously sent email are not deleted.
+
+Republish uses the same address. Selecting subscriber email sends another announcement after the offline version has deployed, through the existing newly-added-sitemap-post workflow. The publisher checks the live sitemap before an emailed republish and refuses while that address is still present. Leave the email checkbox clear for a quiet republish. Editing an already-live post without unpublishing does not trigger another announcement through this workflow.
