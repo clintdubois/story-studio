@@ -115,3 +115,7 @@ Crop border is red and the bottom-right resize handle is a bold red plus; clean 
 ## Crop control layout — 2026-10-07
 
 Moved Crop shape into a labeled field with its label above a full-width styled dropdown. Crop shape, Rotate and Reset align along their bottom edges, share a 44px control height and wrap on narrow screens. Crop behavior is unchanged. Crop checks and frontend syntax pass; visual acceptance pending user review after deployment.
+
+## Direct cover control — 2026-10-07
+
+User could not find the separate Use selected as cover action. Every visible photo tile now has a compact Cover button in Available and Used, choosing that photo directly without prior selection or moving it back. Chosen tile reads Cover with a checkmark and aria-pressed state; cover preview and autosave update as before. Existing bulk cover action remains. Frontend syntax and library checks pass; hosted verification pending user retest.
