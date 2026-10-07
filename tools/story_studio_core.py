@@ -37,6 +37,7 @@ def safe_url(value: str, image=False) -> bool:
 
 STORY_MEDIA_PATH = r'/api/story-media/[0-9a-f-]{36}/[0-9a-f-]{36}(?:/thumbnail)?'
 _ABSOLUTE_IMG_SRC = re.compile(r'(\bsrc=")https?://[^/"\s]+(' + STORY_MEDIA_PATH + r'")')
+_THUMBNAIL_IMG_SRC = re.compile(r'(\bsrc="/api/story-media/[0-9a-f-]{36}/[0-9a-f-]{36})/thumbnail"')
 _ABSOLUTE_COVER = re.compile(r'https?://[^/\s]+(' + STORY_MEDIA_PATH + r')')
 
 
@@ -45,8 +46,14 @@ def localize_story_media(html: str, cover: str):
     /api/story-media/... form. Both name the same photo on the same site, so store the short form. Only that exact
     photo path is rewritten; any other address still has to pass the normal check."""
     html = _ABSOLUTE_IMG_SRC.sub(r'\1\2', html)
+    # A tile dragged from the photo library carries the small thumbnail's address; a picture in the story is the
+    # photo itself (publishing makes the small and large versions), so keep the photo's own address.
+    html = _THUMBNAIL_IMG_SRC.sub(r'\1"', html)
     m = _ABSOLUTE_COVER.fullmatch(cover or '')
-    return html, (m.group(1) if m else cover)
+    cover = m.group(1) if m else cover
+    if re.fullmatch(STORY_MEDIA_PATH, cover or '') and cover.endswith('/thumbnail'):
+        cover = cover[:-len('/thumbnail')]
+    return html, cover
 
 
 def describe_address(value) -> str:

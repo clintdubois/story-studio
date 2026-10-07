@@ -35,6 +35,15 @@ class StudioTests(unittest.TestCase):
         self.assertNotIn('studio.example.net', saved['html'])
         self.assertEqual((images, saved['cover']), ([short], short))
 
+    def test_a_dragged_library_thumbnail_is_stored_as_the_photo_itself(self):
+        d, p = '1bd28ab3-73b0-4d46-8a1f-0123456789ab', '2cd28ab3-73b0-4d46-8a1f-0123456789cd'
+        thumb = f'https://studio.example.net/api/story-media/{d}/{p}/thumbnail'
+        saved, images = validate_draft({**self.draft(f'<figure class="image"><img src="{thumb}" alt="x"></figure>'), 'cover': thumb})
+        short = f'/api/story-media/{d}/{p}'
+        self.assertIn(f'src="{short}"', saved['html'])
+        self.assertNotIn('thumbnail', saved['html'])
+        self.assertEqual((images, saved['cover']), ([short], short))
+
     def test_other_full_addresses_are_still_rejected(self):
         for html in ('<p><img src="https://evil.example/photo.jpg"></p>',
                      '<p><img src="https://studio.example.net/api/other/1/2"></p>',

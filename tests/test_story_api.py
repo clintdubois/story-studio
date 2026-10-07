@@ -69,6 +69,15 @@ class APITests(unittest.TestCase):
         payload={'title':'A trip','date':'2026-10-06','summary':'','html':f'<p><img src="/api/story-media/{KEY}/{PHOTO}"></p>','cover':'','photos':[]}
         with self.assertRaises(ValueError):api.checked_draft(payload,KEY,{'photos':[]})
 
+    def test_thumbnail_address_of_an_owned_photo_is_saved_as_the_photo(self):
+        asset={'id':PHOTO,'name':'x','caption':'','width':10,'height':10,'src':f'/api/story-media/{KEY}/{PHOTO}',
+               'thumbnail':f'/api/story-media/{KEY}/{PHOTO}/thumbnail'}
+        html=f'<figure class="image"><img src="https://example/api/story-media/{KEY}/{PHOTO}/thumbnail" alt="x"></figure>'
+        payload={'title':'A trip','date':'2026-10-06','summary':'','html':html,'cover':'','photos':[{'id':PHOTO,'caption':''}]}
+        saved=api.checked_draft(payload,KEY,{'photos':[asset]})
+        self.assertIn(f'src="/api/story-media/{KEY}/{PHOTO}"',saved['html'])
+        self.assertNotIn('thumbnail"',saved['html'].split('<img')[1])
+
     def test_invalid_photo_writes_nothing(self):
         client=MagicMock()
         with patch.object(api,'read_draft',return_value=({'photos':[]},'v1')):
