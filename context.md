@@ -85,3 +85,7 @@ User confirms a six-photo upload worked, but clearing the automatically selected
 ## Photo pane follows editing — 2026-10-07
 
 User requested access to the photo library while editing lower in a long story. The desktop photo pane now uses sticky positioning with a 16px top gap, aligns to the top of its grid column and has a viewport-limited height with its own vertical scrolling. At widths of 950px or less, where the page uses a single column, it returns to normal page flow. This avoids covering the story on narrow screens. Standalone build passes; hosted scrolling and insertion require user verification. No save/upload/publish behavior changed.
+
+## Selection button visibility fix — 2026-10-07
+
+User screenshot reveals long unbroken photo filenames push the Select/Deselect buttons outside the clipped photo tiles. Filename flex items now shrink with min-width zero and show an ellipsis; selection buttons cannot shrink. Hovering over the filename shows its full value. The viewer still displays the full name. This fixes the visible layout cause rather than changing selection state. Frontend syntax passes. Hosted verification pending user retest.
