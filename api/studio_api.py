@@ -74,12 +74,18 @@ def checked_draft(payload,key,old):
         if not isinstance(photo,dict) or photo.get('id') not in assets:raise ValueError('Upload the photo before saving.')
         asset=dict(assets[photo['id']]);caption=photo.get('caption','')
         if not isinstance(caption,str) or len(caption)>2000:raise ValueError('Keep photo captions under 2,000 characters.')
-        asset['caption']=caption;photos.append(asset)
+        asset['caption']=caption
+        for flag in ('used','removed'):
+            value=photo.get(flag,False)
+            if not isinstance(value,bool):raise ValueError('Invalid photo library state.')
+            asset[flag]=value
+        photos.append(asset)
     # Keep assets uploaded by another tab; only captions are edited here.
     ids={a['id'] for a in photos}
     photos.extend(a for a in old.get('photos',[]) if a['id'] not in ids)
     valid={a['src'] for a in photos}
     refs=images+([clean['cover']] if clean['cover'] else [])
+    if any(a.get('removed') and a['src'] in refs for a in photos):raise ValueError('Remove this photo from the story and cover first.')
     if any(url not in valid for url in refs):raise ValueError('Every story photo must belong to this draft. Add it to the library first.')
     return {**clean,'id':key,'photos':photos,'updated':dt.datetime.now(dt.timezone.utc).isoformat(),
             'published':old.get('published')}

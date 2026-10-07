@@ -93,3 +93,9 @@ User screenshot reveals long unbroken photo filenames push the Select/Deselect b
 ## Cleaner photo tiles — 2026-10-07
 
 User still could not see Select and requested filenames only on hover. Removed filename text from the tile row entirely. The photo's title attribute shows its filename on hover, and the row contains only a full-width Select/Deselect button. Full filename remains available in the viewer. Actual tile rendering and frontend syntax checks pass. User verification after deployment remains pending.
+
+## Available and Used photo tabs — 2026-10-07
+
+Added compact Available/Used tabs with counts. Inserting a photo through the button, gallery or editor marks it Used; cover photos count as Used too. Used history remains after a photo is deleted from the story. Move back returns an unused photo to Available; photos still referenced by the story or cover must be removed there first. Selection clears when a photo becomes used or tabs change. Existing drafts infer usage from their story and cover.
+
+Tiles now have 80px thumbnails and compact Select/Remove controls; filenames stay on hover and in the viewer. Remove hides an unused photo from the draft library, retaining private original and prepared blobs. It does not delete story content. Backend persists validated boolean used/removed state and rejects hiding referenced photos. Tests cover persistence, reference protection, usage history, move-back and removal; 25 Python tests and all five frontend checks pass. Standalone build passes. Publishing remains disabled. Development branch is codex/standalone-studio; hosted interaction verification remains pending user retest after deployment.

@@ -25,6 +25,18 @@ def request(method='GET',role='studio_editor',body=None,action=None,etag='v1'):
                            body=json.dumps(body or {}).encode(),route_params={'id':KEY,'action':action})
 
 class APITests(unittest.TestCase):
+    def test_library_state_persists_and_cannot_remove_referenced_photo(self):
+        src=f'/api/story-media/{KEY}/{PHOTO}'
+        asset={'id':PHOTO,'src':src,'name':'photo.jpg','caption':''}
+        payload={'title':'Test','date':'2026-10-07','summary':'','html':'<p>Story</p>','cover':'','photos':[{**asset,'used':True,'removed':True}]}
+        saved=api.checked_draft(payload,KEY,{'photos':[asset]})
+        self.assertTrue(saved['photos'][0]['used'])
+        self.assertTrue(saved['photos'][0]['removed'])
+        payload['html']=f'<p><img src="{src}"></p>'
+        with self.assertRaisesRegex(ValueError,'story and cover'):api.checked_draft(payload,KEY,{'photos':[asset]})
+        payload['html']='<p>Story</p>';payload['photos'][0]['removed']='yes'
+        with self.assertRaisesRegex(ValueError,'library state'):api.checked_draft(payload,KEY,{'photos':[asset]})
+
     def test_missing_account_cannot_open_storage(self):
         with patch.object(api,'ACCOUNT',''),patch.object(api,'BlobServiceClient') as service:
             with self.assertRaises(RuntimeError):api.storage()
