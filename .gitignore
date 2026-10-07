@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+local/
+site/
+api/story_studio_core.py
+local.settings.json
+.env

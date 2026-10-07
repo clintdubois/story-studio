@@ -1,0 +1,47 @@
+{
+  "platform": {
+    "apiRuntime": "python:3.11"
+  },
+  "responseOverrides": {
+    "401": {
+      "redirect": "/.auth/login/aad?post_login_redirect_uri=.referrer",
+      "statusCode": 302
+    },
+    "403": {
+      "rewrite": "/403.html",
+      "statusCode": 403
+    }
+  },
+  "routes": [
+    {
+      "route": "/admin/story-studio",
+      "allowedRoles": [
+        "studio_editor"
+      ]
+    },
+    {
+      "route": "/admin/story-studio/*",
+      "allowedRoles": [
+        "studio_editor"
+      ]
+    },
+    {
+      "route": "/api/story-studio",
+      "allowedRoles": [
+        "studio_editor"
+      ]
+    },
+    {
+      "route": "/api/story-studio/*",
+      "allowedRoles": [
+        "studio_editor"
+      ]
+    },
+    {
+      "route": "/api/story-media/*",
+      "allowedRoles": [
+        "studio_editor"
+      ]
+    }
+  ]
+}

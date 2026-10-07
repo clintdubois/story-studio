@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "STUDIO_STORAGE_ACCOUNT": "examplestudio",
+    "STUDIO_STORAGE_CONNECTION_STRING": "",
+    "STUDIO_GITHUB_REPOSITORY": "example/blog",
+    "STUDIO_PUBLIC_SITE_URL": "https://blog.example",
+    "STUDIO_LEGACY_MEDIA_HOST": "",
+    "STUDIO_ALLOW_PUBLISH": "false",
+    "STUDIO_GITHUB_TOKEN": ""
+  }
+}

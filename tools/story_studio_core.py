@@ -1,0 +1,164 @@
+"""Storage-independent validation for the CKEditor draft workflow.
+
+Draft HTML is validated rather than flattened into Markdown. Unknown markup
+is rejected with a useful error so save/reopen cannot silently lose layouts.
+"""
+from __future__ import annotations
+
+import datetime as dt
+import io
+import os
+import re
+import warnings
+from html.parser import HTMLParser
+from urllib.parse import urlsplit
+
+from PIL import Image, ImageOps
+
+MAX_PHOTO_BYTES = 20 * 1024 * 1024
+MAX_HTML_BYTES = 2 * 1024 * 1024
+Image.MAX_IMAGE_PIXELS = 40_000_000
+PUBLIC_MEDIA_HOST = os.environ.get('STUDIO_LEGACY_MEDIA_HOST','')
+STUDIO_MEDIA_HOST = os.environ.get('STUDIO_STORAGE_ACCOUNT','') + '.blob.core.windows.net'
+
+
+def safe_url(value: str, image=False) -> bool:
+    if not isinstance(value, str) or re.search(r'[\x00-\x20\\]', value):
+        return False
+    parts = urlsplit(value)
+    if image:
+        return (parts.scheme == 'https' and ((parts.hostname == PUBLIC_MEDIA_HOST
+                and parts.path.startswith('/media/')) or (parts.hostname == STUDIO_MEDIA_HOST
+                and parts.path.startswith('/published/')))) or bool(
+                    re.fullmatch(r'/api/story-media/[0-9a-f-]{36}/[0-9a-f-]{36}(?:/thumbnail)?', value))
+    return (parts.scheme in {'https', 'http', 'mailto'} and not parts.username) or (
+        value.startswith(('/', '#')) and not value.startswith('//'))
+
+
+class StoryHTML(HTMLParser):
+    tags = set('p h2 h3 h4 strong b em i u s del span a ul ol li blockquote '
+               'figure figcaption img table thead tbody tfoot tr td th caption '
+               'hr br code pre div'.split())
+    classes = set('image image-inline image_resized image-style-side '
+                  'image-style-align-left image-style-align-right '
+                  'image-style-align-center image-style-block-align-left '
+                  'image-style-block-align-right table photo-gallery'.split())
+    void = {'img', 'br', 'hr'}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack = []
+        self.images = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag not in self.tags:
+            raise ValueError(f'Unsupported story element: {tag}. Please remove it before saving.')
+        allowed = {'class', 'style'}
+        if tag == 'img': allowed |= {'src', 'alt', 'width', 'height', 'loading'}
+        if tag == 'a': allowed |= {'href', 'target', 'rel', 'title'}
+        if tag in {'td', 'th'}: allowed |= {'colspan', 'rowspan'}
+        if tag == 'ol': allowed |= {'start', 'reversed', 'type'}
+        if tag == 'li': allowed |= {'value', 'data-list-item-id'}
+        for name, value in attrs:
+            if name not in allowed:
+                raise ValueError(f'Unsupported story attribute: {name}.')
+            if name == 'class' and any(c not in self.classes for c in (value or '').split()):
+                raise ValueError('Unsupported photo or table layout.')
+            if name == 'style': self.check_style(value or '')
+            if name in {'src', 'href'} and not safe_url(value, image=name == 'src'):
+                raise ValueError('The story contains an unsupported image or link address.')
+            if name in {'width', 'height', 'colspan', 'rowspan', 'start', 'value'} and not re.fullmatch(r'\d{1,5}', value or ''):
+                raise ValueError('Invalid image or table size.')
+            if name == 'target' and value not in {'_blank', '_self'}:
+                raise ValueError('Unsupported link target.')
+            if name == 'loading' and value not in {'lazy','eager'}:
+                raise ValueError('Unsupported photo loading option.')
+            if name == 'data-list-item-id' and not re.fullmatch(r'[a-z0-9]{16,64}',value or ''):
+                raise ValueError('Invalid list item identifier.')
+            if name == 'rel' and not set((value or '').split()) <= {'noopener','noreferrer','nofollow'}:
+                raise ValueError('Unsupported link option.')
+        if tag == 'img':
+            src = dict(attrs).get('src')
+            if not src: raise ValueError('A story photo has no address.')
+            self.images.append(src)
+        if tag not in self.void: self.stack.append(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in self.void: self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        if tag in self.void: return
+        if not self.stack or self.stack.pop() != tag:
+            raise ValueError('The story markup is incomplete. Please reload the editor.')
+
+    def handle_decl(self, decl):
+        raise ValueError('Document declarations are not allowed in a story.')
+
+    @staticmethod
+    def check_style(value):
+        for declaration in value.split(';'):
+            if not declaration.strip(): continue
+            if ':' not in declaration: raise ValueError('Invalid text styling.')
+            prop, val = [p.strip().lower() for p in declaration.split(':', 1)]
+            valid = False
+            if prop in {'color','background-color'}:
+                valid = bool(re.fullmatch(r'#[0-9a-f]{3,8}|[a-z]+|rgba?\([\d., %]+\)|hsla?\([\d., %]+\)',val))
+            elif prop in {'width','height','max-width','font-size','margin-left'}:
+                valid = bool(re.fullmatch(r'(?:\d+(?:\.\d+)?(?:%|px|pt|em|rem)|auto)',val))
+            elif prop == 'text-align': valid = val in {'left','right','center','justify'}
+            elif prop == 'float': valid = val in {'left','right','none'}
+            elif prop == 'aspect-ratio': valid = bool(re.fullmatch(r'[1-9]\d{0,4}\s*/\s*[1-9]\d{0,4}',val))
+            elif prop == 'font-family': valid = bool(re.fullmatch(r'[a-z ,"\'-]+',val))
+            if not valid: raise ValueError(f'Unsupported text or photo style: {prop}.')
+
+
+def validate_draft(data):
+    if not isinstance(data, dict): raise ValueError('Expected a draft object.')
+    title = data.get('title', '')
+    summary = data.get('summary', '')
+    html = data.get('html', '')
+    if not isinstance(title,str) or not 1 <= len(title.strip()) <= 200:
+        raise ValueError('Add a title of up to 200 characters.')
+    if not isinstance(summary,str) or len(summary) > 2000:
+        raise ValueError('Keep the summary under 2,000 characters.')
+    date = data.get('date')
+    try:
+        if dt.date.fromisoformat(date).isoformat() != date: raise ValueError()
+    except (ValueError,TypeError): raise ValueError('Choose a valid post date.') from None
+    if not isinstance(html,str) or len(html.encode('utf-8')) > MAX_HTML_BYTES:
+        raise ValueError('The story is too large. Upload photos through the photo library.')
+    parser = StoryHTML()
+    parser.feed(html)
+    parser.close()
+    if parser.stack: raise ValueError('The story contains unclosed formatting.')
+    cover = data.get('cover', '')
+    if cover and not safe_url(cover,image=True): raise ValueError('Choose a valid cover photo.')
+    return {'title':title.strip(),'date':date,'summary':summary,'html':html,'cover':cover}, parser.images
+
+
+def prepare_photo(raw: bytes):
+    if not raw or len(raw) > MAX_PHOTO_BYTES: raise ValueError('Choose a photo under 20 MB.')
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error',Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(raw)) as test:
+                if test.format not in {'JPEG','PNG','WEBP'}: raise ValueError('Choose a JPG, PNG, or WebP photo.')
+                test.verify()
+            with Image.open(io.BytesIO(raw)) as source:
+                im = ImageOps.exif_transpose(source)
+                im.thumbnail((1800,1800), Image.Resampling.LANCZOS)
+                if im.mode in {'RGBA','LA'} or 'transparency' in im.info:
+                    rgba=im.convert('RGBA'); bg=Image.new('RGB',im.size,'white');bg.paste(rgba,mask=rgba.getchannel('A'));im=bg
+                out=io.BytesIO();im.convert('RGB').save(out,'JPEG',quality=88,optimize=True)
+                return out.getvalue(),im.width,im.height
+    except (Image.DecompressionBombError,Image.DecompressionBombWarning):
+        raise ValueError('This photo has too many pixels; resize it before adding.') from None
+    except (OSError,SyntaxError): raise ValueError('This file could not be read as a photo.') from None
+
+
+def thumbnail(web_jpeg):
+    with Image.open(io.BytesIO(web_jpeg)) as image:
+        image.thumbnail((720,720),Image.Resampling.LANCZOS)
+        result=io.BytesIO();image.save(result,'JPEG',quality=82,optimize=True)
+        return result.getvalue()
