@@ -1,3 +1,4 @@
+import importlib.util
 import io
 import sys
 import unittest
@@ -102,6 +103,24 @@ class StudioTests(unittest.TestCase):
             self.assertEqual(result.format,'JPEG');self.assertEqual(getattr(result,'n_frames',1),1)
             red,green,blue=result.getpixel((0,0));self.assertGreater(red,240);self.assertLess(blue,10)
             self.assertFalse(result.getexif())
+
+    @unittest.skipUnless(importlib.util.find_spec('pillow_heif'), 'pillow-heif is not installed here')
+    def test_heic_photo_is_converted_to_an_ordinary_jpeg(self):
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+        source = Image.new('RGB', (3000, 2000), (200, 40, 40))
+        raw = io.BytesIO(); source.save(raw, 'HEIF')
+        web, width, height = prepare_photo(raw.getvalue())
+        self.assertEqual((width, height), (1800, 1200))
+        with Image.open(io.BytesIO(web)) as out:
+            self.assertEqual(out.format, 'JPEG')
+            self.assertFalse(out.getexif())
+        self.assertEqual(thumbnail(web)[:2], b'\xff\xd8')
+
+    @unittest.skipUnless(importlib.util.find_spec('pillow_heif'), 'pillow-heif is not installed here')
+    def test_heic_with_a_wrong_extension_or_bad_bytes_is_refused_cleanly(self):
+        with self.assertRaises(ValueError):
+            prepare_photo(b'\x00\x00\x00\x18ftypheic' + b'junk' * 50)
 
     def test_other_recognized_image_formats_remain_rejected(self):
         raw=io.BytesIO();Image.new('RGB',(20,20),'green').save(raw,'GIF')

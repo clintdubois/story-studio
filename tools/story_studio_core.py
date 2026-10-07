@@ -15,6 +15,24 @@ from urllib.parse import urlsplit
 
 from PIL import Image, ImageOps
 
+_heif_ready = None
+
+
+def enable_heif():
+    """Registers the HEIC/HEIF reader (pillow-heif) the first time a photo is prepared, not at import time, so a
+    missing or broken install cannot take the whole API down (same approach as the WestCoastViewNavion site).
+    HEIC photos are then refused as unreadable instead."""
+    global _heif_ready
+    if _heif_ready is None:
+        try:
+            from pillow_heif import register_heif_opener
+            register_heif_opener()
+            _heif_ready = True
+        except Exception:
+            _heif_ready = False
+    return _heif_ready
+
+
 MAX_PHOTO_BYTES = 20 * 1024 * 1024
 MAX_HTML_BYTES = 2 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 40_000_000
@@ -170,6 +188,7 @@ def validate_draft(data):
 
 
 def prepare_photo(raw: bytes):
+    enable_heif()
     if not raw or len(raw) > MAX_PHOTO_BYTES: raise ValueError('Choose a photo under 20 MB.')
     try:
         with warnings.catch_warnings():
@@ -177,11 +196,13 @@ def prepare_photo(raw: bytes):
             with Image.open(io.BytesIO(raw)) as test:
                 # JPEG-based multi-picture files can arrive with a .jpg name.
                 # Decode only their primary image; auxiliary frames stay private.
-                if test.format not in {'JPEG','MPO','PNG','WEBP'}:
-                    raise ValueError(f'This photo is {test.format}, which is not supported. Export it as JPG, PNG, or WebP.')
+                if test.format not in {'JPEG','MPO','PNG','WEBP','HEIF'}:
+                    raise ValueError(f'This photo is {test.format}, which is not supported. Export it as JPG, PNG, WebP, or HEIC.')
                 test.verify()
             with Image.open(io.BytesIO(raw)) as source:
-                source.seek(0)
+                # A HEIC file opens on its primary image already; the first frame of a JPEG-based multi-picture
+                # file is its primary image, so only those are rewound.
+                if source.format != 'HEIF': source.seek(0)
                 im = ImageOps.exif_transpose(source)
                 im.thumbnail((1800,1800), Image.Resampling.LANCZOS)
                 if im.mode in {'RGBA','LA'} or 'transparency' in im.info:

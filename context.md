@@ -20,11 +20,13 @@ Public preview source release: https://github.com/clintdubois/story-studio/relea
 3. A stuck draft blocked every save, and photo uploads save first, so uploads failed with the same message until the picture was normalized.
 Rejection messages now name the offending address (never story text) and cut very long `data:` addresses short (`describe_address`).
 
+**HEIC/HEIF (iPhone photos), added Oct 6:** the browser sends the original file and the server converts it, the same approach as the WestCoastViewNavion site: `pillow-heif` is added to `api/requirements.txt` (BSD-3, bundles libheif under LGPL-3.0; recorded in NOTICE.md) and the reader is registered lazily at the first photo (`enable_heif()`), so a missing or broken install cannot take the API down (HEIC would then be refused as unreadable). The primary image is used, orientation is applied, metadata is stripped, and the web copy and thumbnail are ordinary JPEGs; the original HEIC stays in private storage. The upload button and CKEditor's own image upload accept `.heic`/`.heif` (Windows often reports no type for them). Tests: HEIC conversion and bad-bytes refusal in `tests/test_story_studio.py` (skipped where pillow-heif is not installed) and `tests/test_photo_types.cjs`. Not yet verified on the deployed preview with a real iPhone photo.
+
 **Deployment note:** `.github/workflows/deploy-studio.yml` runs only by hand (`workflow_dispatch`); a push, including to the development branch, does not deploy. Deploy with `gh workflow run deploy-studio.yml --repo clintdubois/story-studio --ref codex/standalone-studio`, then check with a single `gh run list` call. Do not use `gh run watch`.
 
 **Local testing:** `PYTHONPATH=<path with azure.functions> python -m unittest discover -s tests` (22 tests) and the three `tests/*.cjs` files with Node. The user's machine has no Node on PATH; the Codex runtime copy is at `~/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe`. git needed a `safe.directory` exception for this folder because another Windows account owns it (added Oct 6 with the user's approval).
 
-**Still open:** HEIC/HEIF conversion (requested, not implemented); publishing disabled with no publishing token; verify the static-blog publishing contract before enabling production; gallery insert, cover choice, photo edit-copy and the preview have not been re-tested on this deployment; `chezduboistravels/context.md` still describes the older private-repo path and needs refreshing.
+**Still open:** HEIC/HEIF verification on the deployed preview with a real iPhone photo (code and tests added Oct 6); publishing disabled with no publishing token; verify the static-blog publishing contract before enabling production; gallery insert, cover choice, photo edit-copy and the preview have not been re-tested on this deployment; `chezduboistravels/context.md` still describes the older private-repo path and needs refreshing.
 
 ## Batch upload feedback fix
 

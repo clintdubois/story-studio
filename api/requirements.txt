@@ -1,4 +1,5 @@
 azure-functions>=1.21,<2
 azure-storage-blob>=12.23,<13
 pillow>=11.3,<12
+pillow-heif>=0.20,<2
 requests>=2.32,<3

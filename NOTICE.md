@@ -4,4 +4,4 @@ Story Studio extraction and application code: Copyright (c) 2026 Clint and Liz D
 
 CKEditor 5: Copyright (c) 2003-2026 CKSource Holding sp. z o.o. Its original notice is preserved in licenses/CKEditor-LICENSE.md. This project selects the GPL option for the community distribution and retains the Powered by CKEditor branding.
 
-Python dependencies retain their own licenses: azure-functions and Azure SDK packages (MIT), Requests (Apache-2.0), and Pillow (HPND and component notices). Install distributions include their original notices. No CKEditor commercial premium package, CKBox, or CKFinder is included.
+Python dependencies retain their own licenses: azure-functions and Azure SDK packages (MIT), Requests (Apache-2.0), Pillow (HPND and component notices), and pillow-heif (BSD-3-Clause; it includes libheif under LGPL-3.0 and its codecs) used to read iPhone HEIC photos. Install distributions include their original notices. No CKEditor commercial premium package, CKBox, or CKFinder is included.
