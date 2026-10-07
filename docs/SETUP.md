@@ -46,6 +46,6 @@ A site using the documented meta.json/body.html blog contract needs configuratio
 
 ## Current hosted preview
 
-The separate Studio application is hosted at https://zealous-ground-065787e1e.3.azurestaticapps.net/admin/story-studio/. It uses the Free plan. Microsoft invitations are specific to this application. Publication is disabled while authenticated workflow verification is pending. Source downloads are available at https://github.com/clintdubois/story-studio/releases/tag/v0.1.5-preview. No custom domain has been configured.
+The separate Studio application is hosted at https://zealous-ground-065787e1e.3.azurestaticapps.net/admin/story-studio/. It uses the Free plan. Microsoft invitations are specific to this application. Publication is disabled while authenticated workflow verification is pending. Source downloads are available at https://github.com/clintdubois/story-studio/releases/tag/v0.1.6. No custom domain has been configured.
 
 JPEG-based multi-picture (MPO) files with .jpg names are accepted. Their primary image is prepared as ordinary JPEG; additional image frames stay only in the private original.

@@ -54,7 +54,7 @@ class APITests(unittest.TestCase):
                 storage.assert_not_called()
 
     def test_preview_cannot_publish_even_with_publishing_setting(self):
-        with patch.dict(os.environ,{'STUDIO_ALLOW_PUBLISH':'true','STUDIO_GITHUB_TOKEN':'not-real'}):
+        with patch.dict(os.environ,{'STUDIO_ALLOW_PUBLISH':'true','STUDIO_GITHUB_TOKEN':'not-real'}), patch.object(api.Path,'read_text',return_value='{"profile":"preview"}'):
             self.assertEqual(api.publish(MagicMock(),KEY,request('POST',action='publish')).status_code,409)
 
     def test_stale_save_does_not_overwrite(self):
