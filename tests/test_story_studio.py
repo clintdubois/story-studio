@@ -51,4 +51,22 @@ class StudioTests(unittest.TestCase):
         from story_studio_core import MAX_PHOTO_BYTES
         with self.assertRaises(ValueError):prepare_photo(b'x'*(MAX_PHOTO_BYTES+1))
 
+    def test_multi_picture_jpeg_prepares_only_primary_image(self):
+        first=Image.new('RGB',(2000,1000),'red')
+        second=Image.new('RGB',(2000,1000),'blue')
+        raw=io.BytesIO();first.save(raw,'MPO',save_all=True,append_images=[second])
+        with Image.open(io.BytesIO(raw.getvalue())) as source:
+            self.assertEqual(source.format,'MPO');self.assertEqual(source.n_frames,2)
+        prepared,w,h=prepare_photo(raw.getvalue())
+        self.assertEqual((w,h),(1800,900))
+        with Image.open(io.BytesIO(prepared)) as result:
+            self.assertEqual(result.format,'JPEG');self.assertEqual(getattr(result,'n_frames',1),1)
+            red,green,blue=result.getpixel((0,0));self.assertGreater(red,240);self.assertLess(blue,10)
+            self.assertFalse(result.getexif())
+
+    def test_other_recognized_image_formats_remain_rejected(self):
+        raw=io.BytesIO();Image.new('RGB',(20,20),'green').save(raw,'GIF')
+        with self.assertRaisesRegex(ValueError,'GIF'):
+            prepare_photo(raw.getvalue())
+
 if __name__=='__main__':unittest.main()

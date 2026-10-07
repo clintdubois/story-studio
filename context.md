@@ -33,3 +33,9 @@ User provided session evidence: correct approved Microsoft account, aad and stud
 Frontend requests now explicitly include cookies and request JSON, preserve save headers, and report HTTP method/path/status plus sanitized redirect path without query strings. Init reports whether list loading or opening the saved draft failed and displays that beside the disabled photo control. Request tests cover cookies, headers, service statuses and redirect query exclusion; batch/readiness tests remain passing. This is diagnostic improvement, not a confirmed resolution of authenticated uploads.
 
 Request diagnostic source commit 50ab1a6 deployed via run 37570676199; source page verifies v0.1.3-preview is live. User asked to hard-refresh Edge and report the new stage/request/HTTP message if draft initialization still fails. Actual editor upload success remains pending.
+
+## Confirmed JPEG variant rejection and fix
+
+User supplied an original failing .jpg locally. Pillow identifies it as MPO, a JPEG-based two-image file, 4032 by 3024 pixels and under 2 MB. Old validator rejects it because its format whitelist lacks MPO. This failure is reproduced directly against the original bytes; no user image or metadata is committed or included in public source packages.
+
+Validator now accepts MPO alongside JPEG/PNG/WebP, verifies it and decodes only frame zero for orientation-corrected, EXIF-stripped ordinary JPEG web/thumbnail output. Originals remain private. Size/pixel limits remain unchanged. Unsupported recognized formats report their actual format. Synthetic two-frame MPO and rejected GIF cases bring backend tests to 17 passing. Original user file also passes preparation, JPEG output, EXIF removal and 1800/720 size checks. This confirms the format bug; hosted upload success still needs user verification after deployment.

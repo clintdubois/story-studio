@@ -143,9 +143,13 @@ def prepare_photo(raw: bytes):
         with warnings.catch_warnings():
             warnings.simplefilter('error',Image.DecompressionBombWarning)
             with Image.open(io.BytesIO(raw)) as test:
-                if test.format not in {'JPEG','PNG','WEBP'}: raise ValueError('Choose a JPG, PNG, or WebP photo.')
+                # JPEG-based multi-picture files can arrive with a .jpg name.
+                # Decode only their primary image; auxiliary frames stay private.
+                if test.format not in {'JPEG','MPO','PNG','WEBP'}:
+                    raise ValueError(f'This photo is {test.format}, which is not supported. Export it as JPG, PNG, or WebP.')
                 test.verify()
             with Image.open(io.BytesIO(raw)) as source:
+                source.seek(0)
                 im = ImageOps.exif_transpose(source)
                 im.thumbnail((1800,1800), Image.Resampling.LANCZOS)
                 if im.mode in {'RGBA','LA'} or 'transparency' in im.info:
