@@ -10,6 +10,22 @@ Default branch main; development branch codex/standalone-studio. The two approve
 
 Public preview source release: https://github.com/clintdubois/story-studio/releases/tag/v0.1.0-preview. Source ZIP includes the exact upstream CKEditor source. Account invitation acceptance and authenticated uploads remain unverified; do not call those checks complete.
 
+## Latest checkpoint: photo insertion works (2026-10-06, later)
+
+**Resolved:** the draft 403 cleared after the fresh invitation (the session had lost `studio_editor`), and the editor now opens, uploads, inserts a library photo into the story, saves and reopens with the photo still present. The user confirmed this on the deployed preview (commit c246cc2, run 37573426370).
+
+**What the insertion failures were (found by making the server error name the rejected address):**
+1. The editor held a studio photo under the site's full web address (`https://<host>/api/story-media/...`); the validator only accepted the short `/api/story-media/<draft>/<photo>` form. Fixed in `tools/story_studio_core.py` (`localize_story_media`): the exact photo path is rewritten to the short form; any other address is still rejected.
+2. Then "Every story photo must belong to this draft": a library tile dragged into the text carries the small thumbnail's address, which the draft check does not list (it lists each photo's full-size `src`). Fixed: a thumbnail address is stored as the photo itself (publishing makes the small and large versions). Cause inferred from the code and both messages; the fix resolved it.
+3. A stuck draft blocked every save, and photo uploads save first, so uploads failed with the same message until the picture was normalized.
+Rejection messages now name the offending address (never story text) and cut very long `data:` addresses short (`describe_address`).
+
+**Deployment note:** `.github/workflows/deploy-studio.yml` runs only by hand (`workflow_dispatch`); a push, including to the development branch, does not deploy. Deploy with `gh workflow run deploy-studio.yml --repo clintdubois/story-studio --ref codex/standalone-studio`, then check with a single `gh run list` call. Do not use `gh run watch`.
+
+**Local testing:** `PYTHONPATH=<path with azure.functions> python -m unittest discover -s tests` (22 tests) and the three `tests/*.cjs` files with Node. The user's machine has no Node on PATH; the Codex runtime copy is at `~/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe`. git needed a `safe.directory` exception for this folder because another Windows account owns it (added Oct 6 with the user's approval).
+
+**Still open:** HEIC/HEIF conversion (requested, not implemented); publishing disabled with no publishing token; verify the static-blog publishing contract before enabling production; gallery insert, cover choice, photo edit-copy and the preview have not been re-tested on this deployment; `chezduboistravels/context.md` still describes the older private-repo path and needs refreshing.
+
 ## Batch upload feedback fix
 
 User reports selecting six or eight JPGs with no photos or visible error. Confirmed code renders the library only after the full batch finishes and errors appear only as temporary toasts. This does not establish whether that batch failed or was still uploading. Library now renders each success immediately, shows numbered progress and a final count, retains filename-specific errors, continues after failures, and reports preparation/save errors. Autosave is paused during the library batch, which is serialized with direct-editor uploads. Non-JSON HTTP failures now distinguish oversized requests, sign-in failures and service errors.
@@ -46,7 +62,7 @@ MPO fix commit 42ea23f was pushed on codex/standalone-studio and deployed succes
 
 User reports brief messages when inserting a photo into the story, rather than adding it to the library. Local, uncommitted changes in admin/story-studio/index.html skip a queued autosave if an upload begins before that save executes and retain save/recovery messages. New tests/test_save_upload_queue.cjs passes, along with request and batch tests. These changes have not been deployed; their relationship to the user's brief messages is not confirmed.
 
-Current blocker: opening the saved draft from the editor fails with HTTP 403. Screenshot identifies the failed background GET to the saved draft and shows initialization stopped before CKEditor loads; photo controls remain paused. User logged out and back in and confirms the same 403 persists. Earlier direct navigation in the same Microsoft Edge browser returned draft JSON, and supplied session evidence included the correct Microsoft provider and studio_editor role. Do not recommend repeated sign-ins or relax access rules without evidence. The current failure's origin (Azure route authorization versus backend principal check) remains unknown.
+Earlier blocker (resolved, see the latest checkpoint above): opening the saved draft from the editor failed with HTTP 403. Screenshot identifies the failed background GET to the saved draft and shows initialization stopped before CKEditor loads; photo controls remain paused. User logged out and back in and confirms the same 403 persists. Earlier direct navigation in the same Microsoft Edge browser returned draft JSON, and supplied session evidence included the correct Microsoft provider and studio_editor role. Do not recommend repeated sign-ins or relax access rules without evidence. The current failure's origin (Azure route authorization versus backend principal check) remains unknown.
 
 Pending diagnostic question: after this fresh sign-in, does direct navigation to the same saved draft API URL still return JSON or now an access-denied page? No answer received yet. Edge automation is unavailable; the agent's in-app browser has a separate session. Do not collect cookies, tokens, raw authentication headers or private story text.
 
