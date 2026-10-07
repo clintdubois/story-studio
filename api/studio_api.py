@@ -20,6 +20,7 @@ import requests
 
 from story_studio_core import validate_draft, prepare_photo, thumbnail, MAX_PHOTO_BYTES, safe_url
 from studio_import import PostRepository, convert_post, slug_value
+from photo_metadata import extract_metadata
 
 PRIVATE='drafts'
 ACCOUNT=os.environ.get('STUDIO_STORAGE_ACCOUNT','')
@@ -156,6 +157,10 @@ def checked_draft(payload,key,old):
 def upload_photo(client,key,req):
     old,etag=read_draft(client,key)
     payload=req.get_json(); encoded=payload.get('data','')
+    source=payload.get('source_photo_id')
+    if source is not None:
+        identifier(source)
+        if not any(p['id']==source for p in old.get('photos',[])):raise ValueError('The original photo must belong to this draft.')
     if not isinstance(encoded,str) or len(encoded)>MAX_PHOTO_BYTES*4//3+8:raise ValueError('Choose a photo under 20 MB.')
     raw=base64.b64decode(encoded,validate=True)
     image,width,height=prepare_photo(raw)
@@ -174,6 +179,7 @@ def upload_photo(client,key,req):
            'src':f'/api/story-media/{key}/{photo_id}',
            'thumbnail':f'/api/story-media/{key}/{photo_id}/thumbnail'}
     old.setdefault('photos',[]).append(asset)
+    if source:asset['source_photo_id']=source
     newetag=put_draft(client,key,old,etag)
     return response({'photo':asset},etag=newetag)
 
@@ -380,6 +386,20 @@ def handle_media(req):
     try:
         draft=identifier(req.route_params.get('draft'));photo=identifier(req.route_params.get('photo'))
         variant=req.route_params.get('variant')
+        if variant=='metadata':
+            client=storage();saved,_=read_draft(client,draft)
+            assets={p['id']:p for p in saved.get('photos',[])}
+            if photo not in assets:return response({'error':'Photo not found.'},404)
+            selected=assets[photo];original=selected;seen=set()
+            while original.get('source_photo_id'):
+                if original['id'] in seen or original['source_photo_id'] not in assets:raise ValueError('Invalid original photo reference.')
+                seen.add(original['id']);original=assets[original['source_photo_id']]
+            if original.get('external'):return response({'note':'Original metadata is unavailable for this imported website copy.','tags':{}})
+            raw=client.get_blob_client(PRIVATE,f"{draft}/{original['id']}/original").download_blob().readall()
+            details=extract_metadata(raw)
+            details['current_dimensions']=f"{selected.get('width')} × {selected.get('height')}"
+            if original['id']!=photo:details['note']='Capture details are from the original photo; this is an edited copy.'
+            return response(details)
         if variant not in {None,'thumbnail'}:return response({'error':'Photo variant not found.'},404)
         filename='thumbnail.jpg' if variant=='thumbnail' else 'web.jpg'
         content=storage().get_blob_client(PRIVATE,f'{draft}/{photo}/{filename}').download_blob().readall()
