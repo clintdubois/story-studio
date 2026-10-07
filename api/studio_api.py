@@ -75,7 +75,7 @@ def checked_draft(payload,key,old):
         asset=dict(assets[photo['id']]);caption=photo.get('caption','')
         if not isinstance(caption,str) or len(caption)>2000:raise ValueError('Keep photo captions under 2,000 characters.')
         asset['caption']=caption
-        for flag in ('used','removed'):
+        for flag in ('used','removed','reuseAvailable'):
             value=photo.get(flag,False)
             if not isinstance(value,bool):raise ValueError('Invalid photo library state.')
             asset[flag]=value

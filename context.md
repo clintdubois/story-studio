@@ -105,3 +105,9 @@ Tiles now have 80px thumbnails and compact Select/Remove controls; filenames sta
 Replaced the centered 4:3 toggle with a movable crop rectangle and freeform, square, landscape 4:3 and portrait 3:4 presets. Drag inside to move; bottom-right handle resizes. Arrow keys move the box and Shift+arrows resize. Rotation resets the box for the chosen shape; Reset restores the full photo. Brightness remains available. Saved JPEG copies are rendered from a separate clean canvas so crop outlines and shading are never exported. Originals remain unchanged in private storage. Implementation uses built-in browser canvas only, with no new third-party dependency; application code remains covered by the repository GPL license.
 
 Crop geometry/bounds/preset/export-path and frontend syntax checks pass, alongside all existing frontend checks; standalone build passes. Actual pointer interaction and cropped-copy save/reopen on the hosted editor require user verification after deployment. Development branch remains codex/standalone-studio; publishing remains disabled.
+
+## Photo reuse and red crop control — 2026-10-07
+
+Move back now returns a photo to Available without requiring deletion from the story or cover. Persisted reuseAvailable state keeps it available through rendering and reopening; a new story occurrence moves it back into Used. Occurrence tracking supports both insertion buttons and dragging. Remove still protects photos referenced by the story or cover. Backend validates and preserves the new boolean alongside used/removed.
+
+Crop border is red and the bottom-right resize handle is a bold red plus; clean exported JPEGs do not include these controls. All 25 Python tests and six frontend checks pass, including moving back while referenced and marking Used after another insertion. Hosted user verification remains pending after deployment.
