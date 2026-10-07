@@ -119,3 +119,5 @@ Moved Crop shape into a labeled field with its label above a full-width styled d
 ## Direct cover control — 2026-10-07
 
 User could not find the separate Use selected as cover action. Every visible photo tile now has a compact Cover button in Available and Used, choosing that photo directly without prior selection or moving it back. Chosen tile reads Cover with a checkmark and aria-pressed state; cover preview and autosave update as before. Existing bulk cover action remains. Frontend syntax and library checks pass; hosted verification pending user retest.
+
+Cover selection does not consume a library photo: only story occurrences automatically mark Used. A cover not in the story remains Available to select and insert. Existing Move back also permits reuse of a cover already in the story. Remove continues protecting the active cover. Direct cover choice and continued availability checks pass.
