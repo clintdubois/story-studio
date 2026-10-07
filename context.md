@@ -165,3 +165,8 @@ Republish restores the same address. Publish dialog explicitly offers subscriber
 ## Post address guidance — 2026-10-07
 
 User's first publish attempt was rejected because its post address contained a capital letter; no publishing commit was created by that attempt. Added persistent help directly below Post address: lowercase letters, numbers and hyphens only, no capitals/spaces, with my-new-adventure example. Connected help via aria-describedby. Publication rules are unchanged.
+
+
+## Photo editing and arrangements — 2026-10-07
+
+On codex/photo-editing-layouts: added contrast, straighten (-15 to +15 degrees with corner-filling zoom), and 50-step in-session undo for crop, rotate, shape, brightness, contrast and straighten. Save edited copy still uploads a separate JPEG; originals are retained. Added two/three-column galleries, a large image above a pair, and one photo with text alongside left/right using existing reader-compatible table/image classes. Selected photo order now follows selection order; Arrange selected photos provides drag ordering plus Earlier/Later controls, used by both individual insertion and layouts. Ordering is temporary until insertion; saved story HTML preserves final arrangement. Existing story arrangements can be edited with CKEditor table/image controls; the new ordering dialog applies before insertion. Matching source release v0.1.8. Automated checks cover order, layouts, straightening corner safety, undo, server layout acceptance and existing API/upload regressions. Hosted user retest is needed for interaction and final mobile rendering. No blog post or subscriber email was created.

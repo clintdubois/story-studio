@@ -17,6 +17,17 @@ class StudioTests(unittest.TestCase):
     def draft(self,html):
         return {'title':'A trip','date':'2026-10-06','summary':'A story','cover':URL,'html':html}
 
+    def test_new_gallery_and_wrap_layouts(self):
+        for html in [
+            '<table class="photo-gallery"><tbody><tr>' + ''.join('<td style="width:33.333333333333336%"><figure class="image"><img src="'+URL+'"></figure></td>' for _ in range(3)) + '</tr></tbody></table>',
+            '<table class="photo-gallery"><tbody><tr><td colspan="2"><figure class="image"><img src="'+URL+'"></figure></td></tr><tr><td><p></p></td><td><p></p></td></tr></tbody></table>',
+            '<figure class="image image-style-align-left"><img src="'+URL+'"></figure><p>Alongside text</p>',
+            '<figure class="image image-style-align-right"><img src="'+URL+'"></figure><p>Alongside text</p>',
+        ]:
+            saved, images = validate_draft(self.draft(html))
+            self.assertEqual(saved['html'], html)
+            self.assertIn(URL, images)
+
     def test_ckeditor_gallery_and_placement_preserved(self):
         html=f'<figure class="table"><table class="photo-gallery"><tbody><tr><td><figure class="image image_resized image-style-align-right" style="width:40%;"><img src="{URL}" alt="A view"><figcaption>A view</figcaption></figure></td><td><p>Words</p></td></tr></tbody></table></figure>'
         saved,images=validate_draft(self.draft(html))
