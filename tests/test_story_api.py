@@ -25,6 +25,18 @@ def request(method='GET',role='studio_editor',body=None,action=None,etag='v1'):
                            body=json.dumps(body or {}).encode(),route_params={'id':KEY,'action':action})
 
 class APITests(unittest.TestCase):
+    def test_dashboard_summary_uses_only_protected_cover_thumbnail(self):
+        src=f'/api/story-media/{KEY}/{PHOTO}'
+        draft={'id':KEY,'title':'Test','cover':src,'html':'Private writing','photos':[{'id':PHOTO,'src':src,'thumbnail':'https://untrusted.example/tracker'}]}
+        result=api.draft_summary(draft)
+        self.assertEqual(result['cover_thumbnail'],src+'/thumbnail')
+        self.assertNotIn('html',result)
+        self.assertNotIn('photos',result)
+        draft['cover']=''
+        self.assertEqual(api.draft_summary(draft)['cover_thumbnail'],'')
+        draft['cover']=src;draft['photos'][0]['id']='invalid'
+        self.assertEqual(api.draft_summary(draft)['cover_thumbnail'],'')
+
     def test_library_state_persists_and_cannot_remove_referenced_photo(self):
         src=f'/api/story-media/{KEY}/{PHOTO}'
         asset={'id':PHOTO,'src':src,'name':'photo.jpg','caption':''}

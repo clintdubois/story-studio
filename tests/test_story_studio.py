@@ -17,6 +17,17 @@ class StudioTests(unittest.TestCase):
     def draft(self,html):
         return {'title':'A trip','date':'2026-10-06','summary':'A story','cover':URL,'html':html}
 
+    def test_story_templates_are_valid_draft_html(self):
+        import re
+        source=(Path(__file__).resolve().parents[1]/'admin/story-studio/index.html').read_text(encoding='utf-8')
+        block=source.split('const STORY_TEMPLATES={',1)[1].split('};',1)[0]
+        templates=re.findall(r"html:'([^']*)'",block)
+        self.assertEqual(len(templates),4)
+        for html in templates:
+            saved,images=validate_draft(self.draft(html))
+            self.assertEqual(saved['html'],html)
+            self.assertEqual(images,[])
+
     def test_new_gallery_and_wrap_layouts(self):
         for html in [
             '<table class="photo-gallery"><tbody><tr>' + ''.join('<td style="width:33.333333333333336%"><figure class="image"><img src="'+URL+'"></figure></td>' for _ in range(3)) + '</tr></tbody></table>',

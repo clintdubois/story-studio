@@ -246,6 +246,19 @@ def unpublish(client,key,req):
         return response({'success':True,'message':'Unpublishing started. Wait for the website build to finish. Your editable draft and photos are retained.'})
     finally:lease.release()
 
+def draft_summary(draft):
+    result={k:draft.get(k) for k in ['id','title','date','updated','published']}
+    photo=next((p for p in draft.get('photos',[]) if p.get('src')==draft.get('cover')),None)
+    result['cover_thumbnail']=''
+    if photo:
+        try:
+            key=identifier(draft.get('id'));photo_id=identifier(photo.get('id'))
+            result['cover_thumbnail']=f'/api/story-media/{key}/{photo_id}/thumbnail'
+        except ValueError:
+            pass
+    return result
+
+
 def handle_studio(req):
     if not permitted(req):return response({'error':'Microsoft sign-in with the studio_editor role is required.'},403)
     if len(req.get_body())>MAX_PHOTO_BYTES*4//3+4096:return response({'error':'The request is too large.'},413)
@@ -256,7 +269,7 @@ def handle_studio(req):
                 drafts=[]
                 for blob in client.get_container_client(PRIVATE).list_blobs():
                     if blob.name.endswith('/draft.json'):
-                        draft,etag=read_draft(client,blob.name.split('/')[0]);drafts.append({k:draft.get(k) for k in ['id','title','date','updated','published']})
+                        draft,etag=read_draft(client,blob.name.split('/')[0]);drafts.append(draft_summary(draft))
                 return response({'drafts':sorted(drafts,key=lambda d:d.get('updated') or '',reverse=True)})
             if req.method=='POST':
                 key=str(uuid.uuid4());draft={'id':key,'title':'Untitled story','date':dt.date.today().isoformat(),'summary':'','html':'<p></p>','cover':'','photos':[],'updated':dt.datetime.now(dt.timezone.utc).isoformat()}
