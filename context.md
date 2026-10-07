@@ -188,3 +188,5 @@ Added Markdown/PyYAML API dependencies and included API requirements in source a
 
 ## Photo metadata in edit frame — 2026-10-07
 Branch codex/photo-metadata: private Photo details panel reads retained originals on demand, including capture time/recorded timezone, GPS coordinates/altitude, camera/lens/settings, dimensions/size, and expandable readable EXIF. No inferred dates or GPS, no reverse geocoding. Imported website copies may lack originals. New edited copies keep a server-validated source-photo reference for capture details; older edits without provenance cannot recover stripped metadata. Role-protected metadata endpoint; public prepared JPEGs remain stripped. Metadata requests run only on opening the edit frame, independent of editing, and add no deploy test step. Source release v0.1.11.
+
+Metadata follow-up: user reported draft-list platform HTTP 500 after v0.1.11. Isolated metadata-module import to the on-demand metadata route so draft startup does not depend on the new module. Deployment success alone does not verify authenticated API behavior; user retest required. Source v0.1.12.

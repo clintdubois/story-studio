@@ -20,7 +20,6 @@ import requests
 
 from story_studio_core import validate_draft, prepare_photo, thumbnail, MAX_PHOTO_BYTES, safe_url
 from studio_import import PostRepository, convert_post, slug_value
-from photo_metadata import extract_metadata
 
 PRIVATE='drafts'
 ACCOUNT=os.environ.get('STUDIO_STORAGE_ACCOUNT','')
@@ -396,6 +395,7 @@ def handle_media(req):
                 seen.add(original['id']);original=assets[original['source_photo_id']]
             if original.get('external'):return response({'note':'Original metadata is unavailable for this imported website copy.','tags':{}})
             raw=client.get_blob_client(PRIVATE,f"{draft}/{original['id']}/original").download_blob().readall()
+            from photo_metadata import extract_metadata
             details=extract_metadata(raw)
             details['current_dimensions']=f"{selected.get('width')} × {selected.get('height')}"
             if original['id']!=photo:details['note']='Capture details are from the original photo; this is an edited copy.'

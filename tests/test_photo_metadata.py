@@ -18,7 +18,7 @@ class MetadataTests(unittest.TestCase):
         req=MagicMock(headers=request().headers,route_params={'draft':KEY,'photo':edited,'variant':'metadata'})
         client=MagicMock()
         draft={'photos':[{'id':PHOTO},{'id':edited,'source_photo_id':PHOTO,'width':30,'height':20}]}
-        with patch.object(api,'storage',return_value=client),patch.object(api,'read_draft',return_value=(draft,'v1')),patch.object(api,'extract_metadata',return_value={'tags':{}}):
+        with patch.object(api,'storage',return_value=client),patch.object(api,'read_draft',return_value=(draft,'v1')),patch('photo_metadata.extract_metadata',return_value={'tags':{}}):
             res=api.handle_media(req)
             self.assertEqual(res.status_code,200)
             client.get_blob_client.assert_called_once_with('drafts',f'{KEY}/{PHOTO}/original')
