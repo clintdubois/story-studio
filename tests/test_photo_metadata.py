@@ -5,7 +5,7 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'api'))
-from photo_metadata import extract_metadata, coordinates
+from story_studio_core import extract_metadata, coordinates
 from story_studio_core import prepare_photo
 from unittest.mock import MagicMock, patch
 import studio_api as api
@@ -18,7 +18,7 @@ class MetadataTests(unittest.TestCase):
         req=MagicMock(headers=request().headers,route_params={'draft':KEY,'photo':edited,'variant':'metadata'})
         client=MagicMock()
         draft={'photos':[{'id':PHOTO},{'id':edited,'source_photo_id':PHOTO,'width':30,'height':20}]}
-        with patch.object(api,'storage',return_value=client),patch.object(api,'read_draft',return_value=(draft,'v1')),patch('photo_metadata.extract_metadata',return_value={'tags':{}}):
+        with patch.object(api,'storage',return_value=client),patch.object(api,'read_draft',return_value=(draft,'v1')),patch('story_studio_core.extract_metadata',return_value={'tags':{}}):
             res=api.handle_media(req)
             self.assertEqual(res.status_code,200)
             client.get_blob_client.assert_called_once_with('drafts',f'{KEY}/{PHOTO}/original')
