@@ -10,7 +10,7 @@ if not UPSTREAM.exists() or hashlib.sha256(UPSTREAM.read_bytes()).hexdigest()!=E
 files=['.gitignore','README.md','AGENTS.md','CLAUDE.md','context.md','LICENSE','NOTICE.md','local.settings.example.json','staticwebapp.config.json','index.html','source.html','403.html','404.html']
 for folder in ('admin','api','tools','tests','docs','licenses','.github'):
     files.extend(str(p.relative_to(ROOT)).replace('\\','/') for p in (ROOT/folder).rglob('*') if p.is_file() and p.suffix in {'.py','.json','.html','.md','.yml','.cjs'} and '__pycache__' not in p.parts and p.name!='story_studio_core.py')
-files.append('tools/story_studio_core.py')
+files.extend(['tools/story_studio_core.py','api/requirements.txt'])
 output=LOCAL/'Story-Studio-Source-Review.zip'
 with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as z:
     for rel in sorted(set(files)):z.write(ROOT/rel,'story-studio/'+rel)

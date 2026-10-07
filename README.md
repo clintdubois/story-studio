@@ -20,3 +20,10 @@ The maintained validator lives in `tools/story_studio_core.py`. Packaging copies
 ## License
 
 Story Studio code is licensed under GPL-2.0-or-later. See `LICENSE`, `NOTICE.md`, and the upstream CKEditor notice in `licenses/`. The authoring application includes its API and publishing code in the shared source. Stories and photos are data and are not included in this source package.
+
+
+### Recovering a draft or editing an older post
+
+Use **Version history** to view automatic checkpoints and restore one to the private draft. A restore also saves the current draft as a recovery point. History begins when this feature is used; it cannot reconstruct earlier unsaved edits.
+
+Use **Import existing post** to open a private editing copy from the configured repository. Existing Studio posts reopen their original draft. Unchanged imports reopen without losing private edits; changed source creates a separate draft. Review the preview and any cover warning, then Publish at the original post address when ready. Old photo URLs remain in use. The original source is checked for changes before replacement, and importing alone never changes the website or sends mail.

@@ -18,7 +18,8 @@ from azure.core.exceptions import ResourceNotFoundError, ResourceModifiedError, 
 from azure.storage.blob import BlobServiceClient, ContentSettings
 import requests
 
-from story_studio_core import validate_draft, prepare_photo, thumbnail, MAX_PHOTO_BYTES
+from story_studio_core import validate_draft, prepare_photo, thumbnail, MAX_PHOTO_BYTES, safe_url
+from studio_import import PostRepository, convert_post, slug_value
 
 PRIVATE='drafts'
 ACCOUNT=os.environ.get('STUDIO_STORAGE_ACCOUNT','')
@@ -64,6 +65,68 @@ def put_draft(client,key,data,etag=None,new=False):
     result=blob.upload_blob(json.dumps(data).encode(),**options)
     return result['etag']
 
+def import_posts(client,req):
+    repository=PostRepository(REPO,os.environ.get('STUDIO_GITHUB_TOKEN',''))
+    if req.method=='GET':return response({'posts':repository.posts()})
+    if req.method!='POST':return response({'error':'Unsupported import action.'},405)
+    slug=slug_value(req.get_json().get('slug'));source=repository.post(slug)
+    metadata=json.loads(source['meta.json']['text']) if 'meta.json' in source and 'index.md' not in source else {}
+    if metadata.get('studio_draft_id'):
+        key=identifier(metadata['studio_draft_id']);draft,etag=read_draft(client,key)
+        return response(draft,etag=etag)
+    fingerprint=json.dumps({name:item['sha'] for name,item in source.items()},sort_keys=True)
+    key=str(uuid.uuid5(uuid.NAMESPACE_URL,REPO+'/post/'+slug+fingerprint))
+    try:
+        draft,etag=read_draft(client,key)
+        return response(draft,etag=etag)
+    except ResourceNotFoundError:
+        pass
+    draft=convert_post(slug,source,key)
+    try:etag=put_draft(client,key,draft,new=True)
+    except ResourceExistsError:draft,etag=read_draft(client,key)
+    return response(draft,201,etag)
+
+
+def record_version(client,key,draft,force=False):
+    now=dt.datetime.now(dt.timezone.utc)
+    slot=now.replace(minute=now.minute//5*5,second=0,microsecond=0).isoformat()
+    version=str(uuid.uuid4()) if force else str(uuid.uuid5(uuid.NAMESPACE_URL,key+slot))
+    blob=client.get_blob_client(PRIVATE,f'{key}/versions/{version}.json')
+    try:
+        blob.upload_blob(json.dumps(draft).encode(),overwrite=False,
+                         metadata={'saved':str(draft.get('updated') or now.isoformat()),
+                                   'title':base64.b64encode(str(draft.get('title','Untitled story')).encode()).decode()},
+                         content_settings=ContentSettings(content_type='application/json'))
+    except ResourceExistsError:
+        pass
+    return version
+
+
+def version_history(client,key,req):
+    current,etag=read_draft(client,key)
+    if req.method=='GET':
+        version=req.params.get('version')
+        if version:
+            version=identifier(version)
+            blob=client.get_blob_client(PRIVATE,f'{key}/versions/{version}.json')
+            return response(json.loads(blob.download_blob().readall()))
+        rows=[]
+        for blob in client.get_container_client(PRIVATE).list_blobs(name_starts_with=f'{key}/versions/',include=['metadata']):
+            metadata=blob.metadata or {}
+            rows.append({'id':blob.name.rsplit('/',1)[1].removesuffix('.json'),'saved':metadata.get('saved',''),
+                         'title':base64.b64decode(metadata.get('title','')).decode(errors='replace')})
+        return response({'versions':sorted(rows,key=lambda row:row['saved'],reverse=True)[:50]})
+    if req.method=='POST':
+        if req.headers.get('If-Match')!=etag:return response({'error':'This draft changed. Reload before restoring.'},409)
+        version=identifier(req.get_json().get('version'))
+        saved=json.loads(client.get_blob_client(PRIVATE,f'{key}/versions/{version}.json').download_blob().readall())
+        restored=checked_draft(saved,key,current)
+        record_version(client,key,current,force=True)
+        newetag=put_draft(client,key,restored,etag)
+        return response(restored,etag=newetag)
+    return response({'error':'Unsupported history action.'},405)
+
+
 def checked_draft(payload,key,old):
     clean,images=validate_draft(payload)
     assets={a['id']:a for a in old.get('photos',[])}
@@ -88,7 +151,7 @@ def checked_draft(payload,key,old):
     if any(a.get('removed') and a['src'] in refs for a in photos):raise ValueError('Remove this photo from the story and cover first.')
     if any(url not in valid for url in refs):raise ValueError('Every story photo must belong to this draft. Add it to the library first.')
     return {**clean,'id':key,'photos':photos,'updated':dt.datetime.now(dt.timezone.utc).isoformat(),
-            'published':old.get('published')}
+            'published':old.get('published'),'imported':old.get('imported')}
 
 def upload_photo(client,key,req):
     old,etag=read_draft(client,key)
@@ -134,6 +197,7 @@ def publish(client,key,req):
         if not isinstance(slug,str) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',slug) or len(slug)>100:
             raise ValueError('Use a short address containing lowercase letters, numbers, and hyphens.')
         if old.get('published') and old['published']['slug']!=slug:raise ValueError('Keep the existing published address.')
+        if old.get('imported') and old['imported']['slug']!=slug:raise ValueError('Keep the original imported post address.')
         if (old.get('published') or {}).get('active') is False and options.get('notify'):
             sitemap=requests.get(WEBSITE+'/sitemap.xml',timeout=30)
             if not sitemap.ok:raise ValueError('Cannot verify the offline version yet. Try publishing again later.')
@@ -153,17 +217,32 @@ def publish(client,key,req):
         ref=gh('GET','/git/ref/heads/main')['object']['sha'];commit=gh('GET','/git/commits/'+ref)
         existing=session.get(api+'/contents/content/posts/'+slug,params={'ref':ref},timeout=30)
         if existing.status_code not in {200,404}:raise RuntimeError('Could not check the post address.')
+        replace_index=False
         if existing.status_code==200:
-            entries={item['name'] for item in existing.json()}
-            if 'index.md' in entries:raise ValueError('This address belongs to an older post. Choose a new address.')
-            prior=gh('GET','/contents/content/posts/'+slug+'/meta.json?ref='+ref)
-            prior_meta=json.loads(base64.b64decode(prior['content']))
-            if prior_meta.get('studio_draft_id')!=key:raise ValueError('That post address already exists. Choose a different address.')
+            entries={item['name']:item for item in existing.json()}
+            imported=old.get('imported') or {}
+            current_files={name:item['sha'] for name,item in entries.items() if name in {'index.md','meta.json','body.html'}}
+            same_source=imported.get('slug')==slug and imported.get('files')==current_files
+            if 'index.md' in entries:
+                if not same_source:raise ValueError('The original post changed. Import it again to start a separate draft from the latest version.')
+                replace_index=True
+            if 'meta.json' in entries:
+                prior=gh('GET','/contents/content/posts/'+slug+'/meta.json?ref='+ref)
+                prior_meta=json.loads(base64.b64decode(prior['content']))
+                if prior_meta.get('studio_draft_id')!=key and not same_source:
+                    raise ValueError('That post changed or belongs to another draft. Import its latest version first.')
+            elif not same_source:
+                raise ValueError('That post address already exists. Choose a different address.')
         urls={}
         thumbs={}
         for asset in old.get('photos',[]):
             if asset['src'] not in images and asset['src']!=clean['cover']:continue
             lease.renew()
+            if asset.get('external'):
+                if not safe_url(asset['src'],image=True) or asset['src'].startswith('/api/'):
+                    raise ValueError('An imported photo has an unsupported address.')
+                urls[asset['src']]=asset['src']
+                continue
             photo_id=identifier(asset['id']);path=f'{slug}/{photo_id}.jpg'
             public=client.get_blob_client('published',path)
             # Existing UUID bytes are immutable. An edited photo always has a new UUID.
@@ -189,13 +268,13 @@ def publish(client,key,req):
             if width>thumb_width:sources+=f', {url} {width}w'
             return tag[:-1]+f' data-full="{url}" srcset="{sources}" sizes="(max-width: 640px) 100vw, 50vw" loading="lazy">'
         html=re.sub(r'<img\b[^>]*\bsrc="([^"]+)"[^>]*>',responsive,html)
-        meta={'title':clean['title'],'slug':slug,'date':clean['date'],'excerpt':clean['summary'],
+        meta={**(old.get('imported') or {}).get('meta',{}),'title':clean['title'],'slug':slug,'date':clean['date'],'excerpt':clean['summary'],
               'cover':urls.get(clean['cover'],''),'draft':False,'notify':bool(options.get('notify',False)),
               'editor_format':'ckeditor','studio_draft_id':key}
-        if meta['cover']:meta['cover_thumbnail']=thumbs[meta['cover']][0]
+        if meta['cover']:meta['cover_thumbnail']=thumbs.get(meta['cover'],(meta['cover'],))[0]
         tree=gh('POST','/git/trees',{'base_tree':commit['tree']['sha'],'tree':[
             {'path':f'content/posts/{slug}/meta.json','mode':'100644','type':'blob','content':json.dumps(meta,ensure_ascii=False,indent=2)},
-            {'path':f'content/posts/{slug}/body.html','mode':'100644','type':'blob','content':html}]})
+            {'path':f'content/posts/{slug}/body.html','mode':'100644','type':'blob','content':html}]+([{'path':f'content/posts/{slug}/index.md','mode':'100644','type':'blob','sha':None}] if replace_index else [])})
         newcommit=gh('POST','/git/commits',{'message':'Publish reviewed Story Studio post: '+clean['title'],'tree':tree['sha'],'parents':[ref]})
         lease.renew()
         gh('PATCH','/git/refs/heads/main',{'sha':newcommit['sha'],'force':False})
@@ -253,7 +332,7 @@ def draft_summary(draft):
     if photo:
         try:
             key=identifier(draft.get('id'));photo_id=identifier(photo.get('id'))
-            result['cover_thumbnail']=f'/api/story-media/{key}/{photo_id}/thumbnail'
+            result['cover_thumbnail']=photo['src'] if photo.get('external') and safe_url(photo['src'],image=True) else f'/api/story-media/{key}/{photo_id}/thumbnail'
         except ValueError:
             pass
     return result
@@ -264,6 +343,7 @@ def handle_studio(req):
     if len(req.get_body())>MAX_PHOTO_BYTES*4//3+4096:return response({'error':'The request is too large.'},413)
     try:
         client=storage();key=req.route_params.get('id');action=req.route_params.get('action')
+        if key=='imports' and not action:return import_posts(client,req)
         if not key:
             if req.method=='GET':
                 drafts=[]
@@ -275,6 +355,7 @@ def handle_studio(req):
                 key=str(uuid.uuid4());draft={'id':key,'title':'Untitled story','date':dt.date.today().isoformat(),'summary':'','html':'<p></p>','cover':'','photos':[],'updated':dt.datetime.now(dt.timezone.utc).isoformat()}
                 etag=put_draft(client,key,draft,new=True);return response(draft,201,etag)
         identifier(key)
+        if action=='versions':return version_history(client,key,req)
         if action=='photos' and req.method=='POST':return upload_photo(client,key,req)
         if action=='publish' and req.method=='POST':return publish(client,key,req)
         if action=='unpublish' and req.method=='POST':return unpublish(client,key,req)
@@ -283,7 +364,7 @@ def handle_studio(req):
         if not action and req.method=='PUT':
             old,etag=read_draft(client,key)
             if req.headers.get('If-Match')!=etag:return response({'error':'This draft changed in another tab. Reload before saving.'},409)
-            clean=checked_draft(req.get_json(),key,old);newetag=put_draft(client,key,clean,etag)
+            clean=checked_draft(req.get_json(),key,old);record_version(client,key,old);newetag=put_draft(client,key,clean,etag)
             return response(clean,etag=newetag)
         return response({'error':'Unsupported action.'},405)
     except ResourceNotFoundError:return response({'error':'Draft or photo not found.'},404)
