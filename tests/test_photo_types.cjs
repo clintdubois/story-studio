@@ -14,6 +14,7 @@ ok('a.jpg', 'image/jpeg'); ok('a.png', 'image/png'); ok('a.webp', 'image/webp');
 ok('a.heic', 'image/heic'); ok('a.heif', 'image/heif');
 ok('IMG_0001.HEIC', ''); ok('IMG_0002.heif', '');          // Windows often reports no type for HEIC
 no('a.gif', 'image/gif'); no('a.pdf', 'application/pdf'); no('a.txt', ''); no('heic', '');
-assert.match(html, /accept="image\/jpeg,image\/png,image\/webp,image\/heic,image\/heif,\.heic,\.heif"/);
+ok('DSC_0001.NEF', ''); ok('DSC_0002.nef', 'image/x-nikon-nef');   // Windows reports no type for NEF
+assert.match(html, /accept="image\/jpeg,image\/png,image\/webp,image\/heic,image\/heif,image\/x-nikon-nef,\.heic,\.heif,\.nef"/);
 assert.match(html, /upload:\{types:\['jpeg','png','webp','heic','heif'\]\}/);
 console.log('Photo type checks passed: JPG, PNG, WebP, HEIC and HEIF accepted (including a missing type with a .heic name); GIF, PDF and unnamed files refused.');
