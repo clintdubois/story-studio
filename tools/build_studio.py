@@ -2,6 +2,11 @@
 from pathlib import Path
 import shutil
 ROOT=Path(__file__).resolve().parents[1]
+# Compile with the deploy runtime (Python 3.11) before packaging any API.
+for folder in ('api', 'tools'):
+    for source in (ROOT/folder).rglob('*.py'):
+        if '__pycache__' not in source.parts:
+            compile(source.read_bytes(), str(source), 'exec')
 SITE=ROOT/'site'
 SITE.mkdir(exist_ok=True)
 for name in ('index.html','403.html','404.html','source.html','staticwebapp.config.json'):

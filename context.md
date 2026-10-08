@@ -192,3 +192,5 @@ Branch codex/photo-metadata: private Photo details panel reads retained original
 Metadata follow-up: user reported draft-list platform HTTP 500 after v0.1.11. Isolated metadata-module import to the on-demand metadata route so draft startup does not depend on the new module. Deployment success alone does not verify authenticated API behavior; user retest required. Source v0.1.12.
 
 User confirmed draft loading recovered with v0.1.12, but metadata endpoint still fails. Moved metadata helpers into the existing explicitly packaged story_studio_core module, removing the separate runtime module dependency. Source v0.1.13; authenticated metadata retest pending.
+
+Root cause identified: altitude formatting used a bytes literal containing a backslash inside an f-string expression, legal under the newer local Python but a SyntaxError on Azure Python 3.11. Extracted altitude calculation outside the f-string. Build now compiles API/tool sources using CI Python 3.11 before deployment; manual verify-api workflow checks actual runtime dependencies and API tests separately. Live remained v0.1.12 during diagnosis. Source v0.1.14.

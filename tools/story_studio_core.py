@@ -255,7 +255,9 @@ def extract_metadata(raw):
                 if abs(lat)<=90 and abs(lon)<=180:
                     result['location'] = f'{lat:.6f}, {lon:.6f}'
             if 6 in gps:
-                result['altitude'] = f'{float(gps[6]) * (-1 if gps.get(5) in (1,b"\x01") else 1):g} m'
+                below_sea_level = gps.get(5) in (1, bytes([1]))
+                altitude = float(gps[6]) * (-1 if below_sea_level else 1)
+                result['altitude'] = f'{altitude:g} m'
         except (ValueError, TypeError, KeyError, IndexError, OSError, ZeroDivisionError):
             result['note'] = 'Some recorded metadata could not be read.'
         return result
