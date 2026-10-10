@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (c) 2026 Clint and Liz DuBois. See LICENSE and NOTICE.md.
 """Package source for review. No Git publication, deployment or credentials."""
 from pathlib import Path
 import hashlib, json, zipfile

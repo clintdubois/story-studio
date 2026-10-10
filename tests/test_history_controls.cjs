@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (c) 2026 Clint and Liz DuBois. See LICENSE and NOTICE.md.
 const fs=require('fs'),vm=require('vm'),assert=require('assert');const html=fs.readFileSync('admin/story-studio/index.html','utf8');
 const nodes=new Proxy({}, {get:(o,k)=>o[k]??={value:'',style:{},showModal(){},close(){},setAttribute(){}}});
 let confirmRestore=false;const calls=[];const current={title:'A story',date:'2026-10-07',html:'<p>Old</p>',updated:'2026-10-07T12:00:00Z'};

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (c) 2026 Clint and Liz DuBois. See LICENSE and NOTICE.md.
 """NEF -> JPEG conversion (the browser code in admin/story-studio/index.html).
 
 Builds small NEF-shaped TIFF files (little- and big-endian; preview in a SubIFD, or in the Nikon maker note),

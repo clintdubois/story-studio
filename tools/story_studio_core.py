@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (c) 2026 Clint and Liz DuBois. See LICENSE and NOTICE.md.
 """Storage-independent validation for the CKEditor draft workflow.
 
 Draft HTML is validated rather than flattened into Markdown. Unknown markup

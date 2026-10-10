@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (c) 2026 Clint and Liz DuBois. See LICENSE and NOTICE.md.
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');

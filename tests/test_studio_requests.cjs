@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (c) 2026 Clint and Liz DuBois. See LICENSE and NOTICE.md.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync('admin/story-studio/index.html','utf8');
 const code=html.slice(html.indexOf('async function request('),html.indexOf('function applyDraft('));

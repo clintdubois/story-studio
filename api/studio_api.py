@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (c) 2026 Clint and Liz DuBois. See LICENSE and NOTICE.md.
 """HTTP endpoints for approved Story Studio editors.
 
 Secrets are server-only. Local shared modules are copied into api/ by the
